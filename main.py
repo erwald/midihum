@@ -143,7 +143,7 @@ else:
     model.add(Bidirectional(LSTM(units, return_sequences=True, dropout=dropout)))
     model.add(Bidirectional(LSTM(units, return_sequences=True, dropout=dropout)))
     model.add(TimeDistributed(Dense(output_size, activation='sigmoid')))
-    model.compile(loss='mse', optimizer=Adam(lr=0.01, clipnorm=10), metrics=['mse'])
+    model.compile(loss='mse', optimizer=Adam(lr=0.001, clipnorm=10), metrics=['mse'])
 
     print(model.summary())
 
