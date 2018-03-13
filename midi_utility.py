@@ -227,8 +227,6 @@ def unquantize_track(orig_track, style_track):
     orig_track -- Non-quantised MIDI object
     style_track -- Quantised and stylised MIDI object '''
 
-    first_note_msg_idx = None
-
     for i, msg in enumerate(orig_track):
         if msg.type == 'note_on':
             orig_first_note_msg_idx = i
@@ -259,7 +257,7 @@ def unquantize_track(orig_track, style_track):
     for i, (cum_time, msg) in enumerate(style_cum_msgs):
          if msg.type == 'note_on' and msg.velocity > 0:
             note_on_open_msgs = open_msgs[msg.note]
-            note_on_cum_time, note_on_msg = note_on_open_msgs[0]
+            _, note_on_msg = note_on_open_msgs[0]
             note_on_msg.velocity = msg.velocity
             open_msgs[msg.note] = note_on_open_msgs[1:]
 
@@ -503,12 +501,6 @@ def stylify_track(track, ticks_per_quarter, velocity_array, quantization):
 
     num_steps = int(round(track_len_ticks / float(ticks_per_quarter)*2**quantization/4))
     normalized_num_steps = nearest_pow2(num_steps)
-    # notes.sort(key=lambda (position, note_type, note_num, velocity):(position,-velocity))
-
-    notes = [
-        (time * (2**quantization/4) / (ticks_per_quarter), msg.type, msg.note, msg.velocity)
-        for (time, msg) in zip(cum_times, time_msgs)
-        if msg.type == 'note_on' or msg.type == 'note_off']
 
     cum_index = 0
     for i, time_msg in enumerate(track):
@@ -521,9 +513,8 @@ def stylify_track(track, ticks_per_quarter, velocity_array, quantization):
                     if pos > normalized_num_steps:
                         continue
                     vel = velocity_array[pos, PITCH_MAP[time_msg.note]]
-                    vel = vel*127
-                    # print vel
-                    vel = max(vel,1)
+                    vel = vel * 127 # From (0, 1) to (0, 127).
+                    vel = max(vel, 1)
                     track[i].velocity = int(round(vel))
             cum_index += 1
 
