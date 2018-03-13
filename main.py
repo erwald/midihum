@@ -185,7 +185,7 @@ def predict(path):
     return prediction
 
 if args.predict:
-    prediction_data_path = os.path.join('./input_valid_inputs', filename + '.npy')
+    prediction_data_path = os.path.join('./input_valid_inputs', args.predict + '.npy')
     prediction_midi_path = os.path.join('./input', args.predict)
 
     prediction = predict(prediction_data_path)
