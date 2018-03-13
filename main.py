@@ -193,12 +193,10 @@ if args.predict:
 
     print('Stylifying MIDI file ...')
 
-    midi_track = MidiFile(prediction_midi_path)
-    midi_file = MidiFile()
-    stylified_midi_track = midi_utility.stylify_track(midi_track, prediction_data, quantization)
-    midi_file.tracks.append(stylified_midi_track)
+    midi_file = MidiFile(prediction_midi_path)
+    stylified_midi_file = midi_utility.stylify(midi_file, prediction, quantization)
 
-    midi_file.save(os.path.join('./output', args.predict))
+    stylified_midi_file.save(os.path.join('./output', args.predict))
 
 if args.plot:
     prediction_data_path = os.path.join('./midi_data_valid_quantized_inputs', args.plot + '.npy')

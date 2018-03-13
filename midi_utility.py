@@ -14,7 +14,7 @@ DEBUG = False
 # The MIDI pitches we use.
 PITCHES = xrange(21,109,1)
 OFFSET = 109-21
-PITCHES_MAP = { p : i for i, p in enumerate(PITCHES) }
+PITCH_MAP = { p : i for i, p in enumerate(PITCHES) }
 
 def nearest_pow2(x):
     '''Normalize input to nearest power of 2, or midpoints between
@@ -35,38 +35,29 @@ def nearest_pow2(x):
         nearest = low
     return nearest
 
-def midi_to_array_one_hot(mid, quantization):
-    '''Return array representation of a 4/4 time signature, MIDI object.
+def track_to_array_one_hot(track, ticks_per_quarter, quantization):
+    '''Return array representation of a 4/4 time signature MIDI track.
 
-    Normalize the number of time steps in track to a power of 2. Then
-    construct a T x N*2 array A (T = number of time steps, N = number of
-    MIDI note numbers) where [A(t,n), A(t, n+1)] is the state of the note number
-    at time step t.
+    Normalize the number of time steps in track to a power of 2. Then construct
+    a T x N*2 array A (T = number of time steps, N = number of MIDI note 
+    numbers) where [A(t,n), A(t, n+1)] is the state of the note number at time 
+    step t.
 
     Arguments:
-    mid -- MIDI object with a 4/4 time signature
+    track -- MIDI track with a 4/4 time signature.
     quantization -- The note duration, represented as 1/2**quantization.'''
 
-    time_sig_msgs = [ msg for msg in mid.tracks[0] if msg.type == 'time_signature' ]
-    assert len(time_sig_msgs) == 1, 'No time signature found'
-    time_sig = time_sig_msgs[0]
-    assert time_sig.numerator == 4 and time_sig.denominator == 4, 'Not 4/4 time.'
-
-    # Quantize the notes to a grid of time steps.
-    mid = quantize(mid, quantization=quantization)
-
-    # Convert the note timing and velocity to an array.
-    _, track = get_note_track(mid)
-    ticks_per_quarter = mid.ticks_per_beat
-    time_msgs = [msg for msg in track if hasattr(msg, 'time')]
-    cum_times = np.cumsum([msg.time for msg in time_msgs])
+    time_messages = [msg for msg in track if hasattr(msg, 'time')]
+    cum_times = np.cumsum([msg.time for msg in time_messages])
 
     track_len_ticks = cum_times[-1]
+
+    # Extract notes from track.
     if DEBUG:
-        print 'Track len in ticks:', track_len_ticks
+        print 'Track length in ticks:', track_len_ticks
     notes = [
         (time * (2**quantization/4) / (ticks_per_quarter), msg.type, msg.note, msg.velocity)
-        for (time, msg) in zip(cum_times, time_msgs)
+        for (time, msg) in zip(cum_times, time_messages)
         if msg.type == 'note_on' or msg.type == 'note_off']
 
     num_steps = int(round(track_len_ticks / float(ticks_per_quarter)*2**quantization/4))
@@ -74,10 +65,8 @@ def midi_to_array_one_hot(mid, quantization):
     notes.sort(key=lambda (position, note_type, note_num, velocity):(position,-velocity))
 
     if DEBUG:
-        # pp = pprint.PrettyPrinter()
         print num_steps
         print normalized_num_steps
-        # pp.pprint(notes)
 
     midi_array = np.zeros((normalized_num_steps, len(PITCHES)*2))
     velocity_array = np.zeros((normalized_num_steps, len(PITCHES)))
@@ -95,11 +84,10 @@ def midi_to_array_one_hot(mid, quantization):
 
         if note_type == "note_on" and velocity > 0:
             open_msgs[note_num].append((position, note_type, note_num, velocity))
-            midi_array[position, 2*PITCHES_MAP[note_num]] = 1
-            midi_array[position, 2*PITCHES_MAP[note_num]+1] = 1
-            velocity_array[position, PITCHES_MAP[note_num]] = velocity
+            midi_array[position, 2*PITCH_MAP[note_num]] = 1
+            midi_array[position, 2*PITCH_MAP[note_num]+1] = 1
+            velocity_array[position, PITCH_MAP[note_num]] = velocity
         elif note_type == 'note_off' or (note_type == 'note_on' and velocity == 0):
-
             note_on_open_msgs = open_msgs[note_num]
 
             if len(note_on_open_msgs) == 0:
@@ -110,10 +98,10 @@ def midi_to_array_one_hot(mid, quantization):
             open_msgs[note_num] = note_on_open_msgs[1:]
             current_pos = position
             while current_pos > stack_pos:
-                # if midi_array[position, PITCHES_MAP[note_num]] != 1:
-                midi_array[current_pos, 2*PITCHES_MAP[note_num]] = 0
-                midi_array[current_pos, 2*PITCHES_MAP[note_num]+1] = 1
-                velocity_array[current_pos, PITCHES_MAP[note_num]] = vel
+                # if midi_array[position, PITCH_MAP[note_num]] != 1:
+                midi_array[current_pos, 2*PITCH_MAP[note_num]] = 0
+                midi_array[current_pos, 2*PITCH_MAP[note_num]+1] = 1
+                velocity_array[current_pos, PITCH_MAP[note_num]] = vel
                 current_pos -= 1
 
     for (position, note_type, note_num, velocity) in notes:
@@ -127,12 +115,46 @@ def midi_to_array_one_hot(mid, quantization):
             continue
         if note_type == "note_on" and velocity > 0:
             open_msgs[note_num].append((position, note_type, note_num, velocity))
-            midi_array[position, 2*PITCHES_MAP[note_num]] = 1
-            midi_array[position, 2*PITCHES_MAP[note_num]+1] = 1
-            velocity_array[position, PITCHES_MAP[note_num]] = velocity
+            midi_array[position, 2*PITCH_MAP[note_num]] = 1
+            midi_array[position, 2*PITCH_MAP[note_num]+1] = 1
+            velocity_array[position, PITCH_MAP[note_num]] = velocity
 
     assert len(midi_array) == len(velocity_array)
     return midi_array, velocity_array
+
+def midi_to_array_one_hot(mid, quantization):
+    '''Return array representation of a 4/4 time signature MIDI object.
+
+    Arguments:
+    mid -- MIDI object with a 4/4 time signature.
+    quantization -- The note duration, represented as 1/2**quantization.'''
+
+    time_sig_msgs = [ msg for msg in mid.tracks[0] if msg.type == 'time_signature' ]
+    assert len(time_sig_msgs) == 1, 'No time signature found'
+    time_sig = time_sig_msgs[0]
+    assert time_sig.numerator == 4 and time_sig.denominator == 4, 'Not 4/4 time.'
+
+    # Quantize the notes to a grid of time steps.
+    mid = quantize(mid, quantization=quantization)
+
+    midi_array = np.array([])
+    velocity_array = np.array([])
+    ticks_per_quarter = mid.ticks_per_beat
+    for _, track in get_note_tracks(mid):
+        track_midi_array, track_velocity_array = track_to_array_one_hot(track, ticks_per_quarter, quantization)
+        assert len(track_midi_array) == len(track_velocity_array), 'MIDI and velocity track arrays of different length.'
+
+        # If our accumulated array is empty, just use the current track. Else,
+        # merge the accumulated and current array by taking the max values.
+        if len(midi_array) == 0:
+            midi_array = np.array(track_midi_array)
+            velocity_array = np.array(track_velocity_array)
+        else:
+            midi_array = np.maximum(midi_array, np.array(track_midi_array, dtype=int))
+            velocity_array = np.maximum(velocity_array, np.array(track_velocity_array, dtype=int))
+
+    assert len(midi_array) == len(velocity_array), 'MIDI and velocity arrays of different length.'
+    return midi_array.tolist(), velocity_array.tolist()
 
 def print_array(mid, array, quantization=4):
     '''Print a binary array representing midi notes.'''
@@ -157,15 +179,18 @@ def print_array(mid, array, quantization=4):
     # Take out the last newline
     print res[:-1]
 
-def get_note_track(mid):
-    '''Given a MIDI object, return the first track with note events.'''
+def get_note_tracks(mid):
+    '''Given a MIDI object, return all the tracks with note events.'''
 
+    tracks = []
     for i, track in enumerate(mid.tracks):
         for msg in track:
             if msg.type == 'note_on':
-                return i, track
-    raise ValueError(
-        'MIDI object does not contain any tracks with note messages.')
+                tracks.append((i, track))
+                break
+
+    assert len(tracks) > 0, 'MIDI object does not contain any tracks with note messages.'
+    return tracks
 
 def quantize_tick(tick, ticks_per_quarter, quantization):
     '''Quantize the timestamp or tick.
@@ -184,13 +209,14 @@ def quantize_tick(tick, ticks_per_quarter, quantization):
 
 def unquantize(mid, style_mid):
     unquantized_mid = copy.deepcopy(mid)
+
     # By convention, Track 0 contains metadata and Track 1 contains
     # the note on and note off events.
-    orig_note_track_idx, orig_note_track = get_note_track(mid)
-    style_note_track_idx, style_note_track = get_note_track(style_mid)
+    for orig_note_track_idx, orig_note_track in get_note_tracks(mid):
+        for _, style_note_track in get_note_tracks(style_mid):
 
-    note_track = unquantize_track(orig_note_track, style_note_track)
-    unquantized_mid.tracks[orig_note_track_idx] = note_track
+            note_track = unquantize_track(orig_note_track, style_note_track)
+            unquantized_mid.tracks[orig_note_track_idx] = note_track
 
     return unquantized_mid
 
@@ -249,13 +275,14 @@ def quantize(mid, quantization=5):
       1/2**quantization.'''
 
     quantized_mid = copy.deepcopy(mid)
+
     # By convention, Track 0 contains metadata and Track 1 contains
     # the note on and note off events.
-    note_track_idx, note_track = get_note_track(mid)
-    new_track = quantize_track( note_track, mid.ticks_per_beat, quantization)
-    if new_track == None:
-        return None
-    quantized_mid.tracks[note_track_idx] = new_track
+    for note_track_idx, note_track in get_note_tracks(mid):
+        new_track = quantize_track(note_track, mid.ticks_per_beat, quantization)
+        if new_track:
+            quantized_mid.tracks[note_track_idx] = new_track
+
     return quantized_mid
 
 def quantize_track(track, ticks_per_quarter, quantization):
@@ -362,11 +389,15 @@ def quantize_track(track, ticks_per_quarter, quantization):
 
 def stylify(mid, velocity_array, quantization):
     style_mid = copy.deepcopy(mid)
+
     # By convention, Track 0 contains metadata and Track 1 contains
     # the note on and note off events.
-    note_track_idx, note_track = get_note_track(mid)
-    new_track = stylify_track(mid, velocity_array, quantization)
-    style_mid.tracks[note_track_idx] = new_track
+    i = 0
+    for note_track_idx, note_track in get_note_tracks(mid):
+        new_track = stylify_track(note_track, mid.ticks_per_beat, velocity_array, quantization)
+        style_mid.tracks[note_track_idx] = new_track
+        i += 1
+
     return style_mid
 
 # def midi_to_array(mid, quantization):
@@ -429,8 +460,8 @@ def stylify(mid, velocity_array, quantization):
 #
 #         if note_type == "note_on" and velocity > 0:
 #             open_msgs[note_num].append((position, note_type, note_num, velocity))
-#             midi_array[position, PITCHES_MAP[note_num]] = 1
-#             velocity_array[position, PITCHES_MAP[note_num]] = velocity
+#             midi_array[position, PITCH_MAP[note_num]] = 1
+#             velocity_array[position, PITCH_MAP[note_num]] = velocity
 #         elif note_type == 'note_off' or (note_type == 'note_on' and velocity == 0):
 #
 #             note_on_open_msgs = open_msgs[note_num]
@@ -443,9 +474,9 @@ def stylify(mid, velocity_array, quantization):
 #             open_msgs[note_num] = note_on_open_msgs[1:]
 #             current_pos = position
 #             while current_pos > stack_pos:
-#                 # if midi_array[position, PITCHES_MAP[note_num]] != 1:
-#                 midi_array[current_pos, PITCHES_MAP[note_num]] = 2
-#                 velocity_array[current_pos, PITCHES_MAP[note_num]] = vel
+#                 # if midi_array[position, PITCH_MAP[note_num]] != 1:
+#                 midi_array[current_pos, PITCH_MAP[note_num]] = 2
+#                 velocity_array[current_pos, PITCH_MAP[note_num]] = vel
 #                 current_pos -= 1
 #
 #     for (position, note_type, note_num, velocity) in notes:
@@ -459,23 +490,12 @@ def stylify(mid, velocity_array, quantization):
 #             continue
 #         if note_type == "note_on" and velocity > 0:
 #             open_msgs[note_num].append((position, note_type, note_num, velocity))
-#             midi_array[position, PITCHES_MAP[note_num]] = 1
-#             velocity_array[position, PITCHES_MAP[note_num]] = velocity
+#             midi_array[position, PITCH_MAP[note_num]] = 1
+#             velocity_array[position, PITCH_MAP[note_num]] = velocity
 #
 #     return midi_array, velocity_array
 
-def stylify_track(mid, velocity_array, quantization):
-
-    _, track = get_note_track(mid)
-    # first_note_msg_idx = None
-    #
-    # for i, msg in enumerate(track):
-    #     if msg.type == 'note_on':
-    #         first_note_msg_idx = i
-    #         break
-
-    ticks_per_quarter = mid.ticks_per_beat
-
+def stylify_track(track, ticks_per_quarter, velocity_array, quantization):
     time_msgs = [msg for msg in track if hasattr(msg, 'time')]
 
     cum_times = np.cumsum([msg.time for msg in time_msgs])
@@ -500,7 +520,7 @@ def stylify_track(mid, velocity_array, quantization):
                         pos = pos - 1
                     if pos > normalized_num_steps:
                         continue
-                    vel = velocity_array[pos, PITCHES_MAP[time_msg.note]]
+                    vel = velocity_array[pos, PITCH_MAP[time_msg.note]]
                     vel = vel*127
                     # print vel
                     vel = max(vel,1)
@@ -518,18 +538,19 @@ def scrub(mid, velocity=10, random=False):
     mid -- MIDI object with a 4/4 time signature
     velocity -- The global velocity'''
     scrubbed_mid = copy.deepcopy(mid)
+
     # By convention, Track 0 contains metadata and Track 1 contains
     # the note on and note off events.
-    note_track_idx, note_track = get_note_track(mid)
-    if random:
-        new_track = scrub_track_random(note_track)
-    else:
-        new_track = scrub_track(note_track,velocity=10)
-    scrubbed_mid.tracks[note_track_idx] = new_track
+    for note_track_idx, note_track in get_note_tracks(mid):
+        if random:
+            new_track = scrub_track_random(note_track)
+        else:
+            new_track = scrub_track(note_track, velocity=10)
+        scrubbed_mid.tracks[note_track_idx] = new_track
+
     return scrubbed_mid
 
 def scrub_track_random(track):
-
     first_note_msg_idx = None
 
     for i, msg in enumerate(track):
@@ -553,18 +574,19 @@ def velocity_range(mid):
     Arguments:
     mid -- MIDI object with a 4/4 time signature'''
 
-    _, track = get_note_track(mid)
-    first_note_msg_idx = None
-
-    for i, msg in enumerate(track):
-        if msg.type == 'note_on':
-            first_note_msg_idx = i
-            break
     velocities = defaultdict(lambda:0)
-    note_msgs = track[first_note_msg_idx:]
-    for msg in note_msgs:
-         if msg.type == 'note_on' and msg.velocity > 0:
-             velocities[str(msg.velocity)] += 1
+    for _, track in get_note_tracks(mid):
+        first_note_msg_idx = None
+
+        for i, msg in enumerate(track):
+            if msg.type == 'note_on':
+                first_note_msg_idx = i
+                break
+        note_msgs = track[first_note_msg_idx:]
+        for msg in note_msgs:
+            if msg.type == 'note_on' and msg.velocity > 0:
+                velocities[str(msg.velocity)] += 1
+
     dynamics = len(velocities.keys())
     # print velocities
     if dynamics > 1:
