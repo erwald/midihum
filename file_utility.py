@@ -21,7 +21,7 @@ def validate_data(path, quant):
 
     base_path_out = os.path.join(path_prefix, path_suffix+'_valid')
 
-    for root, dirs, files in os.walk(path):
+    for root, _, files in os.walk(path):
         for file in files:
             if file.split('.')[-1].lower() == 'mid':
                 total_file_count += 1
@@ -76,7 +76,7 @@ def quantize_data(path, quant):
     processed_count = 0
 
     base_path_out = os.path.join(path_prefix, path_suffix+'_quantized')
-    for root, dirs, files in os.walk(path):
+    for root, _, files in os.walk(path):
         for file in files:
             if file.split('.')[-1].lower() == 'mid':
                 total_file_count += 1
