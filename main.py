@@ -189,6 +189,7 @@ if args.predict:
     prediction_midi_path = os.path.join('./input', args.predict)
 
     prediction = predict(prediction_data_path)
+    prediction = np.clip(prediction / 127.0, 0, 1) # TODO: Figure out way of using full range.
 
     print('Stylifying MIDI file ...')
 
