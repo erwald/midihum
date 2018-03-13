@@ -11,7 +11,7 @@ from mido import MidiFile
 from sklearn.cross_validation import train_test_split
 from keras.preprocessing import sequence
 from keras.models import Sequential, load_model
-from keras.layers import TimeDistributed, Dense, Dropout, LSTM, Bidirectional
+from keras.layers import LSTM, Bidirectional
 from keras.optimizers import Adam
 
 np.set_printoptions(threshold=np.inf)
@@ -133,16 +133,15 @@ if args.load_model:
 else:
     print('Setting up model ...')
 
-    units = 256
     dropout = 0.2 # Drop 20% of units for linear transformation of inputs.
 
     model = Sequential()
-    model.add(Bidirectional(LSTM(units, return_sequences=True, dropout=dropout),
+    model.add(Bidirectional(LSTM(output_size, return_sequences=True, dropout=dropout),
+                            merge_mode='sum',
                             input_shape=(None,input_size),
                             batch_input_shape=(args.batch_size,None,input_size)))
-    model.add(Bidirectional(LSTM(units, return_sequences=True, dropout=dropout)))
-    model.add(Bidirectional(LSTM(units, return_sequences=True, dropout=dropout)))
-    model.add(TimeDistributed(Dense(output_size, activation='sigmoid')))
+    model.add(Bidirectional(LSTM(output_size, return_sequences=True, dropout=dropout), merge_mode='sum'))
+    model.add(Bidirectional(LSTM(output_size, return_sequences=True, dropout=dropout), merge_mode='sum'))
     model.compile(loss='mse', optimizer=Adam(lr=0.001, clipnorm=10), metrics=['mse'])
 
     print(model.summary())
