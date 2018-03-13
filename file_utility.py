@@ -136,8 +136,8 @@ def save_data(path, quant, one_hot=True):
                 if one_hot:
                     try:
                         array, velocity_array = midi_to_array_one_hot(mid, quant)
-                    except (KeyError, TypeError, IOError, IndexError, EOFError, ValueError):
-                        print "Out of bounds"
+                    except Exception as e:
+                        print "Exception:", e
                         continue
                 else:
                     array, velocity_array = midi_to_array(mid, quant)
