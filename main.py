@@ -133,12 +133,12 @@ else:
     dropout = 0.2 # Drop 20% of units for linear transformation of inputs.
 
     model = Sequential()
-    model.add(Bidirectional(LSTM(output_size, return_sequences=True, dropout=dropout),
+    model.add(Bidirectional(LSTM(output_size, activation='relu', return_sequences=True, dropout=dropout),
                             merge_mode='sum',
                             input_shape=(None,input_size),
                             batch_input_shape=(args.batch_size,None,input_size)))
-    model.add(Bidirectional(LSTM(output_size, return_sequences=True, dropout=dropout), merge_mode='sum'))
-    model.add(Bidirectional(LSTM(output_size, return_sequences=True, dropout=dropout), merge_mode='sum'))
+    model.add(Bidirectional(LSTM(output_size, activation='relu', return_sequences=True, dropout=dropout), merge_mode='sum'))
+    model.add(Bidirectional(LSTM(output_size, activation='tanh', return_sequences=True, dropout=dropout), merge_mode='sum'))
     model.compile(loss='mse', optimizer=Adam(lr=0.001, clipnorm=10), metrics=['mse'])
 
     print(model.summary())
