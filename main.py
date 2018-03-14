@@ -105,9 +105,6 @@ y_test = np.array(y_test)
 print(len(x_train), 'train sequences')
 print(len(x_test), 'test sequences')
 
-print('x_train shape:', x_train.shape)
-print('y_train shape:', y_train.shape)
-
 number_of_notes = 88
 input_size = number_of_notes * 2 # 88 notes * 2 states (pressed, sustained).
 output_size = number_of_notes # 88 notes.
