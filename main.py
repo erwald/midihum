@@ -108,7 +108,7 @@ y_train = np.array(y_train)
 y_test = np.array(y_test)
 
 
-model_path = 'model.h5'
+model_path = 'models/model.h5'
 
 if args.load_model:
     print('Loading model ...')
