@@ -34,7 +34,7 @@ def load_data():
     '''Loads the musical performances and returns sets of inputs and labels
     (notes and resulting velocities), one for testing and one for training.'''
 
-    print('Loading numpy data ...')
+    print('Loading data ...')
 
     midi_data_inputs_path = './midi_data_valid_quantized_inputs'
     midi_data_velocities_path = './midi_data_valid_quantized_velocities'
