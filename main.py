@@ -1,18 +1,15 @@
 from __future__ import print_function
 import file_utility
 import midi_utility
+import model_utility
 import utility
-import model
 import argparse
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 from mido import MidiFile
+from keras.models import load_model
 from sklearn.cross_validation import train_test_split
-from keras.preprocessing import sequence
-from keras.models import Sequential, load_model
-from keras.layers import LSTM, Bidirectional
-from keras.optimizers import Adam
 
 np.set_printoptions(threshold=np.inf)
 
@@ -110,9 +107,6 @@ x_test = np.array(x_test)
 y_train = np.array(y_train)
 y_test = np.array(y_test)
 
-print(len(x_train), 'train sequences')
-print(len(x_test), 'test sequences')
-
 
 model_path = 'model.h5'
 
@@ -120,11 +114,11 @@ if args.load_model:
     print('Loading model ...')
     model = load_model(model_path)
 else:
-    model = model.get_model(x_train, y_train, x_test, y_test,
-                            batch_size=args.batch_size,
-                            epochs=args.epochs,
-                            model_path=model_path,
-                            save_model=args.save_model)
+    model = model_utility.create_model(x_train, y_train, x_test, y_test,
+                                       batch_size=args.batch_size,
+                                       epochs=args.epochs,
+                                       model_path=model_path,
+                                       save_model=args.save_model)
 
 
 if args.predict:
@@ -132,8 +126,8 @@ if args.predict:
         './input_valid_inputs', args.predict + '.npy')
     prediction_midi_path = os.path.join('./input', args.predict)
 
-    prediction = model.predict(
-        prediction_data_path, batch_size=args.batch_size)
+    prediction = model_utility.predict(
+        model, path=prediction_data_path, batch_size=args.batch_size)
     prediction = np.clip(prediction / 127.0, 0, 1)
 
     print('Stylifying MIDI file ...')
@@ -150,8 +144,8 @@ if args.plot:
     true_velocities_path = os.path.join(
         './midi_data_valid_quantized_velocities', args.plot + '.npy')
 
-    prediction = model.predict(
-        prediction_data_path, batch_size=args.batch_size)
+    prediction = model_utility.predict(
+        model, path=prediction_data_path, batch_size=args.batch_size)
     input_note_data = np.load(prediction_data_path)
     input_note_sustains = [timestep[1::2] for timestep in input_note_data]
     true_velocities = np.load(true_velocities_path)

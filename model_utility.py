@@ -1,16 +1,7 @@
 from __future__ import print_function
-import file_utility
-import midi_utility
-import utility
-import model
-import argparse
-import os
 import numpy as np
-import matplotlib.pyplot as plt
-from mido import MidiFile
-from sklearn.cross_validation import train_test_split
 from keras.preprocessing import sequence
-from keras.models import Sequential, load_model
+from keras.models import Sequential
 from keras.layers import LSTM, Bidirectional
 from keras.optimizers import Adam
 
@@ -77,7 +68,7 @@ def create_model(x_train, y_train, x_test, y_test, batch_size, epochs, model_pat
     return model
 
 
-def predict(path, batch_size):
+def predict(model, path, batch_size):
     print('Predicting ...')
 
     prediction_data = np.load(path)
