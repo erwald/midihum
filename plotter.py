@@ -6,6 +6,22 @@ import matplotlib.gridspec as grd
 import model_utility
 
 
+def plot_model_history(history, model_name):
+    fig = plt.figure(figsize=(14, 11), dpi=180)
+    fig.suptitle('Model Performance History', fontsize=10, fontweight='bold')
+
+    print(history.history.keys())
+
+    plt.plot(history.history['mean_squared_error'])
+    plt.ylabel('Loss (Mean Squared Error)')
+    plt.xlabel('Epoch')
+
+    # Write to file.
+    output_path = os.path.join('output', model_name + ".png")
+    plt.savefig(output_path, bbox_inches='tight')
+    plt.close(fig)
+
+
 def plot_comparison(filename, model, batch_size):
     prediction_data_path = os.path.join(
         './midi_data_valid_quantized_inputs', filename + '.npy')
@@ -49,6 +65,7 @@ def plot_comparison(filename, model, batch_size):
     plt.imshow(true_velocities, cmap='jet', vmin=0, vmax=127,
                interpolation='nearest', aspect='auto')
 
+    # Write to file.
     output_path = os.path.join('output', filename.split('.')[0] + ".png")
     plt.savefig(output_path, bbox_inches='tight')
     plt.close(fig)

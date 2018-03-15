@@ -108,17 +108,25 @@ y_train = np.array(y_train)
 y_test = np.array(y_test)
 
 
-model_path = 'models/model.h5'
+model_name = 'model'
+model_path = 'models/' + model_name + '.h5'
 
 if args.load_model:
     print('Loading model ...')
     model = load_model(model_path)
 else:
-    model = model_utility.create_model(x_train, y_train, x_test, y_test,
-                                       batch_size=args.batch_size,
-                                       epochs=args.epochs,
-                                       model_path=model_path,
-                                       save_model=args.save_model)
+    # Train.
+    model, history = model_utility.create_model(x_train, y_train,
+                                                batch_size=args.batch_size,
+                                                epochs=args.epochs,
+                                                model_path=model_path,
+                                                save_model=args.save_model)
+    plotter.plot_model_history(history, model_name)
+
+    # Evaluate.
+    loss_and_metrics = model_utility.evaluate(
+        model, x_test, y_test, batch_size=args.batch_size)
+    print 'Loss and metrics:', loss_and_metrics
 
 
 if args.predict:
