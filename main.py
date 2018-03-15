@@ -1,15 +1,15 @@
-from __future__ import print_function
+import argparse
+import os
+import numpy as np
+from mido import MidiFile
+from keras.models import load_model
+from sklearn.cross_validation import train_test_split
+
 import file_utility
 import midi_utility
 import model_utility
 import utility
-import argparse
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-from mido import MidiFile
-from keras.models import load_model
-from sklearn.cross_validation import train_test_split
+import plotter
 
 np.set_printoptions(threshold=np.inf)
 
@@ -139,37 +139,4 @@ if args.predict:
     stylified_midi_file.save(os.path.join('./output', args.predict))
 
 if args.plot:
-    prediction_data_path = os.path.join(
-        './midi_data_valid_quantized_inputs', args.plot + '.npy')
-    true_velocities_path = os.path.join(
-        './midi_data_valid_quantized_velocities', args.plot + '.npy')
-
-    prediction = model_utility.predict(
-        model, path=prediction_data_path, batch_size=args.batch_size)
-    input_note_data = np.load(prediction_data_path)
-    input_note_sustains = [timestep[1::2] for timestep in input_note_data]
-    true_velocities = np.load(true_velocities_path)
-
-    print('Plotting prediction and true velocities ...')
-
-    fig = plt.figure(figsize=(14, 11), dpi=120)
-    fig.suptitle(args.plot, fontsize=10, fontweight='bold')
-
-    # Plot input (note on/off).
-    fig.add_subplot(1, 3, 1)
-    plt.imshow(input_note_sustains, cmap='binary', vmin=0,
-               vmax=1, interpolation='nearest', aspect='auto')
-
-    # Plot predicted velocities.
-    fig.add_subplot(1, 3, 2)
-    plt.imshow(prediction, cmap='jet', vmin=0, vmax=127,
-               interpolation='nearest', aspect='auto')
-
-    # Plot true velocities.
-    fig.add_subplot(1, 3, 3)
-    plt.imshow(true_velocities, cmap='jet', vmin=0, vmax=127,
-               interpolation='nearest', aspect='auto')
-
-    out_png = os.path.join('output', args.plot.split('.')[0] + ".png")
-    plt.savefig(out_png, bbox_inches='tight')
-    plt.close(fig)
+    plotter.plot_comparison(args.plot, model=model, batch_size=args.batch_size)
