@@ -28,20 +28,27 @@ def plot_comparison(filename, model, batch_size):
     gs = grd.GridSpec(3, 1)
 
     # Plot input (note on/off).
-    fig.add_subplot(gs[0])
+    ax = fig.add_subplot(gs[0])
+    ax.set_title('Input (Note Events)')
+    ax.set_ylabel('Note pitches')
     plt.imshow(input_note_sustains, cmap='binary', vmin=0,
                vmax=1, interpolation='nearest', aspect='auto')
 
     # Plot predicted velocities.
-    fig.add_subplot(gs[1])
+    ax = fig.add_subplot(gs[1])
+    ax.set_title('Predicted Output (Velocities)')
+    ax.set_ylabel('Note pitches')
     plt.imshow(prediction, cmap='jet', vmin=0, vmax=127,
                interpolation='nearest', aspect='auto')
 
     # Plot true velocities.
-    fig.add_subplot(gs[2])
+    ax = fig.add_subplot(gs[2])
+    ax.set_title('Expected Output (Velocities)')
+    ax.set_xlabel('Time steps')
+    ax.set_ylabel('Note pitches')
     plt.imshow(true_velocities, cmap='jet', vmin=0, vmax=127,
                interpolation='nearest', aspect='auto')
 
-    out_png = os.path.join('output', filename.split('.')[0] + ".png")
-    plt.savefig(out_png, bbox_inches='tight')
+    output_path = os.path.join('output', filename.split('.')[0] + ".png")
+    plt.savefig(output_path, bbox_inches='tight')
     plt.close(fig)
