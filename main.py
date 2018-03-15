@@ -32,8 +32,6 @@ parser.add_argument('-s', '--save-model', action='store_true',
 parser.add_argument('-l', '--load-model', action='store_true',
                     help='loads a model from disk')
 
-model_path = 'model.h5'
-
 
 def load_data():
     '''Loads the musical performances and returns sets of inputs and labels
@@ -115,88 +113,18 @@ y_test = np.array(y_test)
 print(len(x_train), 'train sequences')
 print(len(x_test), 'test sequences')
 
-number_of_notes = 88
-input_size = number_of_notes * 2  # 88 notes * 2 states (pressed, sustained).
-output_size = number_of_notes  # 88 notes.
 
-max_sample_length = len(max(x_train, key=len))
-
-
-def batch_generator(xs, ys, batch_size=args.batch_size):
-    '''Generates a batch of samples for training or validation.'''
-    i = 0
-    while True:
-        index1 = (i * batch_size) % len(xs)
-        index2 = min(index1 + batch_size, len(xs))
-        x, y = xs[index1:index2], ys[index1:index2]
-        x = sequence.pad_sequences(x, dtype='float32', padding='post')
-        y = sequence.pad_sequences(y, dtype='float32', padding='post')
-        yield (x, y)
-
+model_path = 'model.h5'
 
 if args.load_model:
     print('Loading model ...')
-
     model = load_model(model_path)
-
 else:
-    print('Setting up model ...')
-
-    dropout = 0.2  # Drop 20% of units for linear transformation of inputs.
-
-    model = Sequential()
-    model.add(Bidirectional(LSTM(output_size, activation='relu', return_sequences=True, dropout=dropout),
-                            merge_mode='sum',
-                            input_shape=(None, input_size),
-                            batch_input_shape=(args.batch_size, None, input_size)))
-    model.add(Bidirectional(LSTM(output_size, activation='relu',
-                                 return_sequences=True, dropout=dropout), merge_mode='sum'))
-    model.add(Bidirectional(LSTM(output_size, activation='tanh',
-                                 return_sequences=True, dropout=dropout), merge_mode='sum'))
-    model.compile(loss='mse', optimizer=Adam(
-        lr=0.001, clipnorm=10), metrics=['mse'])
-
-    print(model.summary())
-
-    print('Training model ...')
-
-    number_of_train_batches = np.ceil(len(x_train)/float(args.batch_size))
-    model.fit_generator(batch_generator(x_train, y_train),
-                        steps_per_epoch=number_of_train_batches,
-                        epochs=args.epochs)
-
-    padded_x_test = sequence.pad_sequences(
-        x_test, dtype='float32', padding='post')
-    padded_y_test = sequence.pad_sequences(
-        y_test, dtype='float32', padding='post')
-
-    if args.save_model:
-        print('Saving model ...')
-        model.save(model_path)
-
-    number_of_test_batches = np.ceil(len(padded_x_test)/float(args.batch_size))
-    loss_and_metrics = model.evaluate_generator(batch_generator(padded_x_test, padded_y_test),
-                                                steps=number_of_test_batches)
-    print('Loss and metrics:', loss_and_metrics)
-
-
-def predict(path):
-    print('Predicting ...')
-
-    prediction_data = np.load(path)
-    np.savetxt('output/prediction_data.out', prediction_data, fmt='%d')
-
-    # Copy prediction input N times to create a batch of the right size.
-    tiled = np.tile(prediction_data, [args.batch_size, 1, 1])
-
-    raw_prediction = model.predict(tiled, batch_size=args.batch_size)[0]
-    prediction = (raw_prediction * 127).astype(int)  # Float -> MIDI velocity.
-
-    print('Max:', np.max(prediction))
-    print('Min:', np.min(prediction))
-    np.savetxt('output/prediction_result.out', prediction, fmt='%d')
-
-    return prediction
+    model = model.get_model(x_train, y_train, x_test, y_test,
+                            batch_size=args.batch_size,
+                            epochs=args.epochs,
+                            model_path=model_path,
+                            save_model=args.save_model)
 
 
 if args.predict:
@@ -204,8 +132,8 @@ if args.predict:
         './input_valid_inputs', args.predict + '.npy')
     prediction_midi_path = os.path.join('./input', args.predict)
 
-    prediction = predict(prediction_data_path)
-    # TODO: Figure out way of using full range.
+    prediction = model.predict(
+        prediction_data_path, batch_size=args.batch_size)
     prediction = np.clip(prediction / 127.0, 0, 1)
 
     print('Stylifying MIDI file ...')
@@ -222,7 +150,8 @@ if args.plot:
     true_velocities_path = os.path.join(
         './midi_data_valid_quantized_velocities', args.plot + '.npy')
 
-    prediction = predict(prediction_data_path)
+    prediction = model.predict(
+        prediction_data_path, batch_size=args.batch_size)
     input_note_data = np.load(prediction_data_path)
     input_note_sustains = [timestep[1::2] for timestep in input_note_data]
     true_velocities = np.load(true_velocities_path)
