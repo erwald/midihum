@@ -91,14 +91,13 @@ if args.prepare_midi:
 
     file_utility.validate_data(midi_data_path, quantization)
     file_utility.quantize_data(midi_data_valid_path, quantization)
-    file_utility.save_data(midi_data_valid_quantized_path,
-                           quantization, one_hot=True)
+    file_utility.save_data(midi_data_valid_quantized_path, quantization)
 
 if args.prepare_predictions:
     print('Preparing prediction MIDI data ...')
 
     file_utility.validate_data(predictables_path, quantization)
-    file_utility.save_data(predictables_valid_path, quantization, one_hot=True)
+    file_utility.save_data(predictables_valid_path, quantization)
 
 x_train, x_test, y_train, y_test = load_data()
 
@@ -126,7 +125,7 @@ else:
     # Evaluate.
     loss_and_metrics = model_utility.evaluate(
         model, x_test, y_test, batch_size=args.batch_size)
-    print 'Loss and metrics:', loss_and_metrics
+    print('Loss and metrics:', loss_and_metrics)
 
 
 if args.predict:

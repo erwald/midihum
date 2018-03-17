@@ -28,14 +28,14 @@ def create_model(x_train, y_train, batch_size, epochs, model_path, save_model=Fa
     dropout = 0.2  # Drop 20% of units for linear transformation of inputs.
 
     model = Sequential()
-    model.add(Bidirectional(LSTM(output_size, activation='tanh', return_sequences=True, dropout=dropout),
+    model.add(Bidirectional(LSTM(output_size, activation='relu', return_sequences=True, dropout=dropout),
                             merge_mode='sum',
                             input_shape=(None, input_size),
                             batch_input_shape=(batch_size, None, input_size)))
-    # model.add(Bidirectional(LSTM(output_size, activation='relu',
-    #  return_sequences=True, dropout=dropout), merge_mode='sum'))
-    # model.add(Bidirectional(LSTM(output_size, activation='tanh',
-    #                              return_sequences=True, dropout=dropout), merge_mode='sum'))
+    model.add(Bidirectional(LSTM(output_size, activation='relu',
+                                 return_sequences=True, dropout=dropout), merge_mode='sum'))
+    model.add(Bidirectional(LSTM(output_size, activation='tanh',
+                                 return_sequences=True, dropout=dropout), merge_mode='sum'))
     model.compile(loss='mse', optimizer=Adam(
         lr=0.001, clipnorm=10), metrics=['mse'])
 
@@ -79,7 +79,7 @@ def predict(model, path, batch_size):
     raw_prediction = model.predict(tiled, batch_size=batch_size)[0]
     prediction = (raw_prediction * 127).astype(int)  # Float -> MIDI velocity.
 
-    print 'Highest predicted velocity:', np.max(prediction)
-    print 'Lowest predicted velocity:', np.min(prediction)
+    print('Highest predicted velocity:', np.max(prediction))
+    print('Lowest predicted velocity:', np.min(prediction))
 
     return prediction
