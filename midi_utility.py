@@ -115,8 +115,8 @@ def track_to_array_one_hot(track, ticks_per_quarter, quantization):
 
     for (position, note_type, note_num, velocity) in notes:
         if position == normalized_num_steps:
-            print('Warning: truncating from position {} to {}'.format(
-                position, normalized_num_steps - 1))
+            # print('Warning: truncating from position {} to {}'.format(
+                # position, normalized_num_steps - 1))
             position = normalized_num_steps - 1
             # continue
 
@@ -273,18 +273,18 @@ def unquantize_track(orig_track, style_track):
     orig_cum_msgs.sort(key=lambda cumTimeAndMsg: cumTimeAndMsg[0])
     style_cum_msgs.sort(key=lambda cumTimeAndMsg: cumTimeAndMsg[0])
 
-    open_msgs = defaultdict(list)
+    remaining_msgs = defaultdict(list)
 
     for cum_time, msg in orig_cum_msgs:
         if msg.type == 'note_on' and msg.velocity > 0:
-            open_msgs[msg.note].append((cum_time, msg))
+            remaining_msgs[msg.note].append((cum_time, msg))
 
     for i, (cum_time, msg) in enumerate(style_cum_msgs):
         if msg.type == 'note_on' and msg.velocity > 0:
-            note_on_open_msgs = open_msgs[msg.note]
-            _, note_on_msg = note_on_open_msgs[0]
+            remaining_msgs = remaining_msgs[msg.note]
+            _, note_on_msg = remaining_msgs[0]
             note_on_msg.velocity = msg.velocity
-            open_msgs[msg.note] = note_on_open_msgs[1:]
+            remaining_msgs[msg.note] = remaining_msgs[1:]
 
     return orig_track
 
@@ -342,58 +342,45 @@ def quantize_track(track, ticks_per_quarter, quantization):
 
     quantized_track = MidiTrack()
     quantized_track.extend(track[:first_note_msg_idx])
-    # Keep track of note_on events that have not had an off event yet.
-    # note number -> message
-    remaining_msgs = defaultdict(list)
+
     quantized_msgs = []
+    index = 0
+
+    # Iterate through all the MIDI messages searching for 'note on' events.
     for cum_time, msg in cum_msgs:
         if DEBUG:
             print('Message:', msg)
             print('Open messages:')
-            pp.pprint(remaining_msgs)
+
         if msg.type == 'note_on' and msg.velocity > 0:
-            # Store until note off event. Note that there can be
-            # several note events for the same note. Subsequent
-            # note_off events will be associated with these note_on
-            # events in FIFO fashion.
-            remaining_msgs[msg.note].append((cum_time, msg))
-        elif msg.type == 'note_off' or (msg.type == 'note_on' and msg.velocity == 0):
-            # assert msg.note in open_msgs, \
-            #     'Bad MIDI. Cannot have note off event before note on event'
+            # For each 'note on' event, find the next corresponding 'note off'
+            # event for the same note value.
+            for other_cum_time, other_msg in cum_msgs[index:]:
+                if ((other_msg.type == 'note_off' or
+                     (other_msg.type == 'note_on' and other_msg.velocity == 0))
+                        and msg.note == other_msg.note):
 
-            if msg.note not in remaining_msgs:
-                print('Bad MIDI. Cannot have note off event before note on event')
-                return
+                    # Quantized 'note on' time.
+                    quantized_note_on_cum_time = quantize_tick(
+                        cum_time, ticks_per_quarter, quantization)
 
-            note_on_open_msgs = remaining_msgs[msg.note]
+                    # The cumulative time of a 'note off' event is the quantized
+                    # cumulative time of the associated 'note on' plus the
+                    # original difference of the unquantized cumulative times.
+                    quantized_note_off_cum_time = quantized_note_on_cum_time + \
+                        (other_cum_time - cum_time)
+                    quantized_msgs.append(
+                        (min(end_of_track_cum_time, quantized_note_on_cum_time), msg))
+                    quantized_msgs.append(
+                        (min(end_of_track_cum_time, quantized_note_off_cum_time), other_msg))
 
-            if len(note_on_open_msgs) == 0:
-                print('Bad MIDI, Note has no end time.')
-                return
+                    # print('Appended', quantized_msgs[-2:])
 
-            # assert len(note_on_open_msgs) > 0, 'Bad MIDI, Note has no end time.'
-
-            note_on_cum_time, note_on_msg = note_on_open_msgs[0]
-            remaining_msgs[msg.note] = note_on_open_msgs[1:]
-
-            # Quantized note_on time
-            quantized_note_on_cum_time = quantize_tick(
-                note_on_cum_time, ticks_per_quarter, quantization)
-
-            # The cumulative time of note_off is the quantized
-            # cumulative time of note_on plus the orginal difference
-            # of the unquantized cumulative times.
-            quantized_note_off_cum_time = quantized_note_on_cum_time + \
-                (cum_time - note_on_cum_time)
-            quantized_msgs.append(
-                (min(end_of_track_cum_time, quantized_note_on_cum_time), note_on_msg))
-            quantized_msgs.append(
-                (min(end_of_track_cum_time, quantized_note_off_cum_time), msg))
-
-            if DEBUG:
-                print('Appended', quantized_msgs[-2:])
+                    break
         elif msg.type == 'end_of_track':
             quantized_msgs.append((cum_time, msg))
+
+        index += 1
 
         if DEBUG:
             print('\n')

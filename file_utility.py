@@ -26,13 +26,15 @@ def validate_data(path, quant):
 
     base_path_out = os.path.join(path_prefix, path_suffix+'_valid')
 
+    skipped_file_names = []
+
     for root, _, files in os.walk(path):
         for file in files:
             is_filtered_out = FILE_FILTER_PREFIX and not file.startswith(
                 FILE_FILTER_PREFIX)
             if file.split('.')[-1].lower() == 'mid' and not is_filtered_out:
                 total_file_count += 1
-                print('Validating ' + str(file))
+                print('Validating', str(file))
                 midi_path = os.path.join(root, file)
                 try:
                     midi_file = MidiFile(midi_path)
@@ -45,15 +47,17 @@ def validate_data(path, quant):
                 if len(time_sig_msgs) == 1:
                     time_sig = time_sig_msgs[0]
                     if not (time_sig.numerator == 4 and time_sig.denominator == 4):
+                        skipped_file_names.append(file)
                         print('\tTime signature not 4/4. Skipping ...')
                         continue
                 else:
-                    print(len(time_sig_msgs))
+                    skipped_file_names.append(file)
                     print('\tNo time signature. Skipping ...')
                     continue
 
                 mid = quantize(MidiFile(os.path.join(root, file)), quant)
                 if not mid:
+                    skipped_file_names.append(file)
                     print('Invalid MIDI. Skipping...')
                     continue
 
@@ -68,6 +72,10 @@ def validate_data(path, quant):
 
     print('\nValidated {} files out of {}'.format(
         processed_count, total_file_count))
+
+    print('\nSkipped {} files:'.format(len(skipped_file_names)))
+    for skipped_file_name in skipped_file_names:
+        print('\t', skipped_file_name)
 
 
 def quantize_data(path, quant):
@@ -92,6 +100,8 @@ def quantize_data(path, quant):
                 FILE_FILTER_PREFIX)
             if file.split('.')[-1].lower() == 'mid' and not is_filtered_out:
                 total_file_count += 1
+                print('Quantizing', str(file))
+
                 mid = quantize(MidiFile(os.path.join(root, file)), quant)
                 if not mid:
                     print('Invalid MIDI. Skipping...')
@@ -102,7 +112,7 @@ def quantize_data(path, quant):
                     os.makedirs(out_dir)
                 out_file = os.path.join(out_dir, file)
 
-                print('Saving', out_file)
+                print('\tSaving', out_file)
                 mid.save(out_file)
 
                 processed_count += 1
@@ -143,7 +153,7 @@ def save_data(path, quant):
                 midi_path = os.path.join(root, file)
                 midi_file = MidiFile(midi_path)
 
-                print('Saving ' + str(file))
+                print('Saving', str(file))
                 mid = MidiFile(os.path.join(root, file))
 
                 # mid = quantize(midi_file,
