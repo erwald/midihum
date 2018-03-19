@@ -100,7 +100,7 @@ def track_to_array_one_hot(track, ticks_per_quarter, quantization):
             note_on_remaining_msgs = remaining_msgs[note_num]
 
             if not note_on_remaining_msgs:
-                print('Bad MIDI, Note has no end time.')
+                print('Bad MIDI, note has no end time.')
                 return
 
             stack_pos, _, _, vel = note_on_remaining_msgs[0]
