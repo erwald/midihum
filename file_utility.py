@@ -79,9 +79,10 @@ def validate_data(path, quant):
     print('\nValidated {} files out of {}'.format(
         processed_count, total_file_count))
 
-    print('\nSkipped {} files:'.format(len(skipped_file_names)))
-    for skipped_file_name in skipped_file_names:
-        print('\t', skipped_file_name)
+    if len(skipped_file_names) > 0:
+        print('\nSkipped {} files:'.format(len(skipped_file_names)))
+        for skipped_file_name in skipped_file_names:
+            print('\t', skipped_file_name)
 
 
 def quantize_data(path, quant):
