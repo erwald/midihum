@@ -32,6 +32,15 @@ def validate_data(path, quant):
 
     for root, _, files in os.walk(path):
         for file in files:
+            # Calculate output file path.
+            if not os.path.exists(base_path_out):
+                os.makedirs(base_path_out)
+            output_file_path = os.path.join(base_path_out, file)
+
+            # If the file has already been validated, proceed to the next one.
+            if os.path.isfile(output_file_path):
+                continue
+
             is_filtered_out = FILE_FILTER_PREFIX and not file.startswith(
                 FILE_FILTER_PREFIX)
             if file.split('.')[-1].lower() == 'mid' and not is_filtered_out:
@@ -63,13 +72,8 @@ def validate_data(path, quant):
                     print('Invalid MIDI. Skipping...')
                     continue
 
-                if not os.path.exists(base_path_out):
-                    os.makedirs(base_path_out)
-
-                out_file = os.path.join(base_path_out, file)
-
-                print('\tSaving', out_file)
-                midi_file.save(out_file)
+                print('\tSaving', output_file_path)
+                midi_file.save(output_file_path)
                 processed_count += 1
 
     print('\nValidated {} files out of {}'.format(
@@ -98,6 +102,17 @@ def quantize_data(path, quant):
     base_path_out = os.path.join(path_prefix, path_suffix+'_quantized')
     for root, _, files in os.walk(path):
         for file in files:
+            # Calculate output file path.
+            suffix = root.split(path)[-1]
+            out_dir = base_path_out + '/' + suffix
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
+            output_file_path = os.path.join(out_dir, file)
+
+            # If the file has already been quantized, proceed to the next one.
+            if os.path.isfile(output_file_path):
+                continue
+
             is_filtered_out = FILE_FILTER_PREFIX and not file.startswith(
                 FILE_FILTER_PREFIX)
             if file.split('.')[-1].lower() == 'mid' and not is_filtered_out:
@@ -108,14 +123,9 @@ def quantize_data(path, quant):
                 if not mid:
                     print('Invalid MIDI. Skipping...')
                     continue
-                suffix = root.split(path)[-1]
-                out_dir = base_path_out + '/' + suffix
-                if not os.path.exists(out_dir):
-                    os.makedirs(out_dir)
-                out_file = os.path.join(out_dir, file)
 
-                print('\tSaving', out_file)
-                mid.save(out_file)
+                print('\tSaving', output_file_path)
+                mid.save(output_file_path)
 
                 processed_count += 1
 
@@ -144,22 +154,23 @@ def save_data(path, quant):
 
     for root, _, files in os.walk(path):
         for file in files:
+            # Calculate output file paths.
+            array_output_path = '{}.npy'.format(os.path.join(array_out, file))
+            velocity_output_path = '{}.npy'.format(
+                os.path.join(velocity_out, file))
+
+            # If the file has already been saved as data, proceed.
+            if (os.path.isfile(array_output_path) and
+                    os.path.isfile(velocity_output_path)):
+                continue
+
             is_filtered_out = FILE_FILTER_PREFIX and not file.startswith(
                 FILE_FILTER_PREFIX)
             if (file.split('.')[-1] == 'mid' or file.split('.')[-1] == 'MID') and not is_filtered_out:
                 total_file_count += 1
 
-                out_array = '{}.npy'.format(os.path.join(array_out, file))
-                out_velocity = '{}.npy'.format(
-                    os.path.join(velocity_out, file))
-                midi_path = os.path.join(root, file)
-                midi_file = MidiFile(midi_path)
-
                 print('Saving', str(file))
                 mid = MidiFile(os.path.join(root, file))
-
-                # mid = quantize(midi_file,
-                #                quantization=quant)
 
                 try:
                     array, velocity_array = midi_to_array_one_hot(
@@ -182,8 +193,8 @@ def save_data(path, quant):
                 # print_array(mid, array)
                 # raw_input("Press Enter to continue...")
 
-                np.save(out_array, array)
-                np.save(out_velocity, velocity_array)
+                np.save(array_output_path, array)
+                np.save(velocity_output_path, velocity_array)
 
                 processed_count += 1
     print('\nSaved {} files out of {}'.format(
