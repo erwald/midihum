@@ -24,10 +24,10 @@ parser.add_argument(
     '--predict', help='make prediction for midi file on given path')
 parser.add_argument(
     '--plot', help='make prediction and plot it compared with known answer')
-parser.add_argument('-s', '--save-model', action='store_true',
-                    help='saves the model to file')
 parser.add_argument('-l', '--load-model', action='store_true',
                     help='loads a model from disk')
+parser.add_argument('-t', '--train-model', action='store_true',
+                    help='trains the model for the set number of epochs')
 
 
 def load_data():
@@ -114,18 +114,22 @@ if args.load_model:
     print('Loading model ...')
     model = load_model(model_path)
 else:
-    # Train.
-    model, history = model_utility.create_model(x_train, y_train,
-                                                batch_size=args.batch_size,
-                                                epochs=args.epochs,
-                                                model_path=model_path,
-                                                save_model=args.save_model)
+    model = model_utility.create_model(batch_size=args.batch_size)
+
+if args.train_model:
+    model, history = model_utility.train_model(model,
+                                               x_train=x_train,
+                                               y_train=y_train,
+                                               batch_size=args.batch_size,
+                                               epochs=args.epochs,
+                                               model_path=model_path,
+                                               save_model=True)
     plotter.plot_model_history(history, model_name)
 
-    # Evaluate.
-    loss_and_metrics = model_utility.evaluate(
-        model, x_test, y_test, batch_size=args.batch_size)
-    print('Loss and metrics:', loss_and_metrics)
+# Evaluate.
+loss_and_metrics = model_utility.evaluate(
+    model, x_test, y_test, batch_size=args.batch_size)
+print('Loss and metrics:', loss_and_metrics)
 
 
 if args.predict:

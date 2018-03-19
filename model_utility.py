@@ -22,7 +22,7 @@ input_size = number_of_notes * 2  # 88 notes * 2 states (pressed, sustained).
 output_size = number_of_notes  # 88 notes.
 
 
-def create_model(x_train, y_train, batch_size, epochs, model_path, save_model=False):
+def create_model(batch_size):
     print('Setting up model ...')
 
     dropout = 0.2  # Drop 20% of units for linear transformation of inputs.
@@ -41,6 +41,10 @@ def create_model(x_train, y_train, batch_size, epochs, model_path, save_model=Fa
 
     print(model.summary())
 
+    return model
+
+
+def train_model(model, x_train, y_train, batch_size, epochs, model_path, save_model=False):
     print('Training model ...')
 
     number_of_train_batches = np.ceil(len(x_train)/float(batch_size))
