@@ -12,9 +12,9 @@ The theory behind and considerable parts of the code in this project are based o
 4. Prepare the training data by running `python main.py --prepare-midi`.
 5. Train the model by running `python main.py -t`. After this is done, your model has been saved to `model/model.h5`.
 6. You can now load your model with the `-l` flag and either:
-    A) predict velocities by running `python main.py -l --predict=/path/to/my/midi.mid`;
-    B) or plot a prediction on your training data alongside the true velocities with `python main.py -l --plot=my_midi_file.mid` (said file needs to be one of those in your `midi_data/` directory);
-    C) or continue training the model by running `python main.py -lt`.
+    1. predict velocities by running `python main.py -l --predict=/path/to/my/midi.mid`;
+    2. or plot a prediction on your training data alongside the true velocities with `python main.py -l --plot=my_midi_file.mid` (said file needs to be one of those in your `midi_data/` directory);
+    3. or continue training the model by running `python main.py -lt`.
 
 ## How does the model look?
 
