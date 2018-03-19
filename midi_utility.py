@@ -1,3 +1,5 @@
+# Much of this code is taken from https://github.com/imalikshake/StyleNet/
+
 from collections import defaultdict
 import copy
 from math import log, floor, ceil

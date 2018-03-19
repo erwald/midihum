@@ -1,3 +1,5 @@
+# Much of this code is taken from https://github.com/imalikshake/StyleNet/
+
 import os
 import numpy as np
 from mido import MidiFile

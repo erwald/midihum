@@ -1,6 +1,7 @@
 #! /usr/bin/env ruby
 
 # Script to generate a format 0 MIDI file from a format 1 source.
+# This code is taken from https://github.com/imalikshake/StyleNet/
 
 require_relative 'midi_file.rb'
 
