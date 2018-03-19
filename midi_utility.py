@@ -79,8 +79,8 @@ def track_to_array_one_hot(track, ticks_per_quarter, quantization):
 
     midi_array = np.zeros((normalized_num_steps, len(PITCHES)*2))
     velocity_array = np.zeros((normalized_num_steps, len(PITCHES)))
-    remaining_msgs = defaultdict(list)
 
+    index = 0
     for (position, note_type, note_num, velocity) in notes:
         if position == normalized_num_steps:
             # print('Warning: truncating from position {} to {}'.format(position, normalized_num_steps - 1))
@@ -92,28 +92,25 @@ def track_to_array_one_hot(track, ticks_per_quarter, quantization):
             continue
 
         if note_type == "note_on" and velocity > 0:
-            remaining_msgs[note_num].append(
-                (position, note_type, note_num, velocity))
             midi_array[position, 2*PITCH_MAP[note_num]] = 1
             midi_array[position, 2*PITCH_MAP[note_num]+1] = 1
             velocity_array[position, PITCH_MAP[note_num]] = velocity
 
-        elif note_type == 'note_off' or (note_type == 'note_on' and velocity == 0):
-            note_on_remaining_msgs = remaining_msgs[note_num]
+            # For each 'note on' event, find the next corresponding 'note off'
+            # event for the same note value.
+            for (other_position, other_note_type, other_note_num, other_velocity) in notes[index:]:
+                if ((other_note_type == 'note_off' or
+                     (other_note_type == 'note_on' and other_velocity == 0))
+                        and note_num == other_note_num):
+                    current_pos = position
+                    while current_pos > other_position:
+                        midi_array[current_pos, 2*PITCH_MAP[note_num]] = 0
+                        midi_array[current_pos, 2*PITCH_MAP[note_num]+1] = 1
+                        velocity_array[current_pos,
+                                       PITCH_MAP[note_num]] = other_velocity
+                        current_pos -= 1
 
-            if not note_on_remaining_msgs:
-                print('Bad MIDI, note has no end time.')
-                return
-
-            stack_pos, _, _, vel = note_on_remaining_msgs[0]
-            remaining_msgs[note_num] = note_on_remaining_msgs[1:]
-            current_pos = position
-            while current_pos > stack_pos:
-                # if midi_array[position, PITCH_MAP[note_num]] != 1:
-                midi_array[current_pos, 2*PITCH_MAP[note_num]] = 0
-                midi_array[current_pos, 2*PITCH_MAP[note_num]+1] = 1
-                velocity_array[current_pos, PITCH_MAP[note_num]] = vel
-                current_pos -= 1
+        index += 1
 
     for (position, note_type, note_num, velocity) in notes:
         if position == normalized_num_steps:
@@ -127,8 +124,6 @@ def track_to_array_one_hot(track, ticks_per_quarter, quantization):
             continue
 
         if note_type == "note_on" and velocity > 0:
-            remaining_msgs[note_num].append(
-                (position, note_type, note_num, velocity))
             midi_array[position, 2*PITCH_MAP[note_num]] = 1
             midi_array[position, 2*PITCH_MAP[note_num]+1] = 1
             velocity_array[position, PITCH_MAP[note_num]] = velocity
