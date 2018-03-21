@@ -96,6 +96,7 @@ def track_to_array_one_hot(track, ticks_per_quarter, quantization):
     # For each pitch ...
     for index in range(len(PITCHES)):
         # ... go through all the pairs of corresponding note on and off values.
+        assert len(note_on_events[index]) == len(note_off_events[index])
         for (note_on_msg, note_off_msg) in zip(note_on_events[index], note_off_events[index]):
             (on_position, _, _, on_velocity) = note_on_msg
             (off_position, _, _, _) = note_off_msg
