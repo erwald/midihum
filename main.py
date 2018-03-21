@@ -106,6 +106,8 @@ x_test = np.array(x_test)
 y_train = np.array(y_train)
 y_test = np.array(y_test)
 
+print('Train sequences: {}'.format(len(x_train)))
+print('Test sequences: {}'.format(len(x_test)))
 
 model_name = 'model'
 model_path = 'models/' + model_name + '.h5'
