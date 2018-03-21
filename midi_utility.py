@@ -77,56 +77,44 @@ def track_to_array_one_hot(track, ticks_per_quarter, quantization):
         print(num_steps)
         print(normalized_num_steps)
 
+    # Lists of note events, iow a list of lists of note on/off events. That is,
+    # for each pitch we store a list of note on/off events for that pitch.
+    note_on_events = [[] for _ in range(len(PITCHES))]
+    note_off_events = [[] for _ in range(len(PITCHES))]
+
+    for note_msg in notes:
+        (_, note_type, note_num, velocity) = note_msg
+        if note_type == 'note_on' and velocity > 0:
+            note_on_events[PITCH_MAP[note_num]].append(note_msg)
+        elif (note_type == 'note_off' or (note_type == 'note_on' and velocity == 0)):
+            note_off_events[PITCH_MAP[note_num]].append(note_msg)
+
+    # Initialise our resulting arrays with all zeroes.
     midi_array = np.zeros((normalized_num_steps, len(PITCHES)*2))
     velocity_array = np.zeros((normalized_num_steps, len(PITCHES)))
 
-    index = 0
-    for (position, note_type, note_num, velocity) in notes:
-        if position == normalized_num_steps:
-            # print('Warning: truncating from position {} to {}'.format(position, normalized_num_steps - 1))
-            position = normalized_num_steps - 1
-            # continue
+    # For each pitch ...
+    for index in range(len(PITCHES)):
+        # ... go through all the pairs of corresponding note on and off values.
+        for (note_on_msg, note_off_msg) in zip(note_on_events[index], note_off_events[index]):
+            (on_position, _, _, on_velocity) = note_on_msg
+            (off_position, _, _, _) = note_off_msg
 
-        if position > normalized_num_steps:
-            # print('Warning: skipping note at position {} (greater than {})'.format(position, normalized_num_steps))
-            continue
+            on_position = min(len(midi_array) - 1, on_position)
+            off_position = min(len(midi_array) - 1, off_position)
 
-        if note_type == "note_on" and velocity > 0:
-            midi_array[position, 2*PITCH_MAP[note_num]] = 1
-            midi_array[position, 2*PITCH_MAP[note_num]+1] = 1
-            velocity_array[position, PITCH_MAP[note_num]] = velocity
+            # Fill in the values for the note on event.
+            midi_array[on_position, 2*index] = 1
+            midi_array[on_position, 2*index+1] = 1
+            velocity_array[on_position, index] = on_velocity
 
-            # For each 'note on' event, find the next corresponding 'note off'
-            # event for the same note value.
-            for (other_position, other_note_type, other_note_num, other_velocity) in notes[index:]:
-                if ((other_note_type == 'note_off' or
-                     (other_note_type == 'note_on' and other_velocity == 0))
-                        and note_num == other_note_num):
-                    current_pos = position
-                    while current_pos > other_position:
-                        midi_array[current_pos, 2*PITCH_MAP[note_num]] = 0
-                        midi_array[current_pos, 2*PITCH_MAP[note_num]+1] = 1
-                        velocity_array[current_pos,
-                                       PITCH_MAP[note_num]] = other_velocity
-                        current_pos -= 1
-
-        index += 1
-
-    for (position, note_type, note_num, velocity) in notes:
-        if position == normalized_num_steps:
-            # print('Warning: truncating from position {} to {}'.format(
-                # position, normalized_num_steps - 1))
-            position = normalized_num_steps - 1
-            # continue
-
-        if position > normalized_num_steps:
-            # print('Warning: skipping note at position {} (greater than {})'.format(position, normalized_num_steps))
-            continue
-
-        if note_type == "note_on" and velocity > 0:
-            midi_array[position, 2*PITCH_MAP[note_num]] = 1
-            midi_array[position, 2*PITCH_MAP[note_num]+1] = 1
-            velocity_array[position, PITCH_MAP[note_num]] = velocity
+            # Fill in the sustain values between the note on and off events.
+            current_position = off_position
+            while current_position > on_position:
+                midi_array[current_position, 2*index] = 0
+                midi_array[current_position, 2*index+1] = 1
+                velocity_array[current_position, index] = on_velocity
+                current_position -= 1
 
     assert len(midi_array) == len(velocity_array)
     return midi_array, velocity_array
