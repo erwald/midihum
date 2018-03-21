@@ -83,7 +83,7 @@ def predict(model, path, batch_size):
     raw_prediction = model.predict(tiled, batch_size=batch_size)[0]
     prediction = (raw_prediction * 127).astype(int)  # Float -> MIDI velocity.
 
-    print('Highest predicted velocity:', np.max(prediction))
-    print('Lowest predicted velocity:', np.min(prediction))
+    print('Highest predicted velocity: {}'.format(np.max(prediction)))
+    print('Lowest predicted velocity: {}'.format(np.min(prediction)))
 
     return prediction
