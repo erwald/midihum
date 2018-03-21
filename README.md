@@ -22,6 +22,13 @@ The model is made up of three layers of bidirectional long short-term memory net
 
 It uses Adam (with a learning rate of `0.001` and a gradient clipping of `g = 10`) as its optimiser. The loss function is mean squared error. That's pretty much it -- for more details, have a look at `model_utility.py`.
 
+## To do
+
+- [ ] Move preprocessed data into subfolders.
+- [ ] Remember training history between sessions and plot complete histories.
+- [ ] Plot prediction comparison after each epoch.
+- [ ] Predict note timings as well as velocities.
+
 ## Whence the name?
 
 I named the project after Rachel Heard, whose recording of Haydn's _Andante con variazioni in F minor_ for Naxos remains unsurpassed among the many recordings of that piece I've heard so far, and after Rachel Podger, whose recordings for Channel Classics are a constant joy for me. But I would hardly be surprised to learn that there are many more musical Rachels on our earth whom this project would be glad to claim as eponyms.
