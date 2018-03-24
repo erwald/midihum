@@ -38,7 +38,7 @@ def create_model(batch_size):
     model.add(Bidirectional(LSTM(output_size, activation='tanh',
                                  return_sequences=True, dropout=dropout), merge_mode='sum'))
     model.compile(loss='mse', optimizer=Adam(
-        lr=0.001, clipnorm=10), metrics=['mse'])
+        lr=0.001, clipnorm=1), metrics=['mse'])
 
     print(model.summary())
 
