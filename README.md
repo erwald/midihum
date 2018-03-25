@@ -28,6 +28,7 @@ It uses Adam (with a learning rate of `0.001` and a gradient clipping of `g = 10
 - [ ] Remember training history between sessions and plot complete histories.
 - [ ] Plot prediction comparison after each epoch.
 - [ ] Predict note timings as well as velocities.
+- [ ] Handle 3/4 time in addition to common time.
 
 ## Whence the name?
 
