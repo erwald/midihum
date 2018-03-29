@@ -144,6 +144,9 @@ if args.predict:
         model, path=prediction_data_path, batch_size=args.batch_size)
     prediction = np.clip(prediction / 127.0, 0, 1)
 
+    plotter.plot_prediction(args.predict, model=model,
+                            batch_size=args.batch_size)
+
     print('Stylifying MIDI file ...')
 
     midi_file = MidiFile(prediction_midi_path)
