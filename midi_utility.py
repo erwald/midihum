@@ -420,6 +420,10 @@ def stylify_track(track, ticks_per_quarter, velocity_array, quantization):
         round(track_len_ticks / float(ticks_per_quarter)*2**quantization/4))
     normalized_num_steps = nearest_pow2(num_steps)
 
+    # Keep track of the last used velocity in case the model failed to predict
+    # velocity for a certain note (leaving it at a regrettable 0).
+    last_velocity = 64
+
     cum_index = 0
     for i, time_msg in enumerate(track):
         if hasattr(time_msg, 'time'):
@@ -431,10 +435,18 @@ def stylify_track(track, ticks_per_quarter, velocity_array, quantization):
                         pos = pos - 1
                     if pos > normalized_num_steps:
                         continue
-                    vel = velocity_array[pos, PITCH_MAP[time_msg.note]]
-                    vel = vel * 127  # From (0, 1) to (0, 127).
-                    vel = max(vel, 1)
-                    track[i].velocity = int(round(vel))
+
+                    velocity = velocity_array[pos, PITCH_MAP[time_msg.note]]
+                    velocity = velocity * 127  # From (0, 1) to (0, 127).
+
+                    if velocity < 10:
+                        print('Warning: predicted velocity for {} was below 10; '.format(time_msg) +
+                              'attempting to rectify by using last velocity of {}'.format(last_velocity))
+                        velocity = last_velocity
+
+                    last_velocity = velocity
+
+                    track[i].velocity = int(round(velocity))
             cum_index += 1
 
     return track
