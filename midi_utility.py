@@ -439,8 +439,8 @@ def stylify_track(track, ticks_per_quarter, velocity_array, quantization):
                     velocity = velocity_array[pos, PITCH_MAP[time_msg.note]]
                     velocity = velocity * 127  # From (0, 1) to (0, 127).
 
-                    if velocity < 10:
-                        print('Warning: predicted velocity for {} was below 10; '.format(time_msg) +
+                    if velocity < 1:
+                        print('Warning: predicted velocity for {} was below 1; '.format(time_msg) +
                               'attempting to rectify by using last velocity of {}'.format(last_velocity))
                         velocity = last_velocity
 
