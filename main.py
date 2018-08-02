@@ -18,6 +18,8 @@ parser.add_argument('--prepare-midi', action='store_true',
                     help='validates, quantizes and saves train and test midi data')
 parser.add_argument('--prepare-predictions', action='store_true',
                     help='validates, quantizes and saves prediction midi data')
+parser.add_argument('--include-baseline', action='store_true',
+                    help='also outputs a midi file with static velocities')
 parser.add_argument('--batch-size', default=4, type=int, help='batch size')
 parser.add_argument('--epochs', default=1, type=int, help='batch size')
 parser.add_argument(
@@ -154,6 +156,24 @@ if args.predict:
         midi_file, prediction, quantization)
 
     stylified_midi_file.save(os.path.join('./output', args.predict))
+
+if args.include_baseline and args.predict:
+    input_data_path = os.path.join(
+        './input_valid_inputs', args.predict + '.npy')
+    input_midi_path = os.path.join('./input', args.predict)
+
+    print('Creating baseline (all velocities set to 64) MIDI file ...')
+
+    input_data = np.load(input_data_path)
+    input_length = input_data.shape[0]
+    output_size = input_data.shape[1] // 2
+    velocities = np.full((input_length, output_size), 0.5)  # Velocity of 63.5.
+
+    midi_file = MidiFile(input_midi_path)
+    baseline_midi_file = midi_utility.stylify(
+        midi_file, velocities, quantization)
+
+    baseline_midi_file.save(os.path.join('./output_baseline', args.predict))
 
 if args.plot:
     plotter.plot_comparison(args.plot, model=model, batch_size=args.batch_size)
