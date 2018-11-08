@@ -130,7 +130,7 @@ if args.train_model:
                                                save_model=True)
     plotter.plot_model_history(history, model_name)
 
-# Evaluate iff we have a model that has been at some point been trained.
+# Evaluate iff we have a model that has at some point been trained.
 if args.load_model or args.train_model:
     loss_and_metrics = model_utility.evaluate(
         model, x_test, y_test, batch_size=args.batch_size)
