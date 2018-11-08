@@ -44,15 +44,15 @@ def plot_prediction(filename, model, batch_size):
     ax = fig.add_subplot(gs[0])
     ax.set_title('Input (Note Events)')
     ax.set_ylabel('Note pitches')
-    plt.imshow(input_note_sustains, cmap='RdPu', vmin=0,
-               vmax=2, interpolation='nearest', aspect='auto')
+    plt.imshow(input_note_sustains, cmap='RdPu', vmin=0, vmax=2,
+               origin='lower', interpolation='nearest', aspect='auto')
 
     # Plot predicted velocities.
     ax = fig.add_subplot(gs[1])
     ax.set_title('Predicted Output (Velocities)')
     ax.set_ylabel('Note pitches')
     plt.imshow(prediction, cmap='jet', vmin=0, vmax=127,
-               interpolation='nearest', aspect='auto')
+               origin='lower', interpolation='nearest', aspect='auto')
 
     # Write to file.
     output_path = os.path.join('output', filename.split('.')[0] + ".png")
@@ -86,14 +86,14 @@ def plot_comparison(filename, model, batch_size):
     ax.set_title('Input (Note Events)')
     ax.set_ylabel('Note pitches')
     plt.imshow(input_note_sustains, cmap='RdPu', vmin=0,
-               vmax=2, interpolation='nearest', aspect='auto')
+               origin='lower', vmax=2, interpolation='nearest', aspect='auto')
 
     # Plot predicted velocities.
     ax = fig.add_subplot(gs[1])
     ax.set_title('Predicted Output (Velocities)')
     ax.set_ylabel('Note pitches')
     plt.imshow(prediction, cmap='jet', vmin=0, vmax=127,
-               interpolation='nearest', aspect='auto')
+               origin='lower', interpolation='nearest', aspect='auto')
 
     # Plot true velocities.
     ax = fig.add_subplot(gs[2])
@@ -101,7 +101,7 @@ def plot_comparison(filename, model, batch_size):
     ax.set_xlabel('Time steps')
     ax.set_ylabel('Note pitches')
     plt.imshow(true_velocities, cmap='jet', vmin=0, vmax=127,
-               interpolation='nearest', aspect='auto')
+               origin='lower', interpolation='nearest', aspect='auto')
 
     # Write to file.
     output_path = os.path.join('output', filename.split('.')[0] + ".png")
