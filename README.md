@@ -16,20 +16,16 @@ The theory behind and considerable parts of the code in this project are based o
     2. or plot a prediction of a sample from your training data alongside its true velocities with `python main.py -l --plot=my_midi_file.mid` (said file needs to be one of those in your `midi_data/` directory);
     3. or continue training the model by running `python main.py -lt`.
 
-Here are some common commands one may want to run:
+Here are the commands I commonly tend to run:
 
 ```sh
+# Loads the model (at `models/model.h5`) & trains it for 20 epochs (then saves 
+# it again).
+$ python3 main.py -lt --epochs=20
+
 # Validates, quantizes, converts to data & saves all MIDI files in the `input/` 
 # folder, & then loads the model & makes a prediction for `My_Song.mid`.
 $ python3 main.py -l --prepare-predictions --predict=My_Song.mid
-
-# Validates, quantizes, converts to data both the training & validation sets, 
-# then trains a new model for 1 epoch (saving it to `models/model.h5`).
-$ python3 main.py --prepare-midi -t
-
-# Loads the model (at `models/model.h5`) & trains it for 10 epochs (then saves 
-# it again).
-$ python3 main.py -lt --epochs=10
 ```
 
 ## How does the model look?
