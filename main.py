@@ -3,7 +3,7 @@ import os
 import numpy as np
 from mido import MidiFile
 from keras.models import load_model
-from sklearn.cross_validation import train_test_split
+from sklearn.model_selection import train_test_split
 
 import file_utility
 import midi_utility
@@ -69,7 +69,7 @@ def load_data():
 
         assert input_data[i].shape[0] == velocity_data[i].shape[0]
 
-    return train_test_split(input_data, velocity_data, test_size=0.05)
+    return train_test_split(input_data, velocity_data, test_size=0.05, random_state=1988)
 
 
 args = parser.parse_args()
