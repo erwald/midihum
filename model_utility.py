@@ -21,7 +21,7 @@ def create_model(batch_size):
     print('Setting up model ...')
 
     # Input shape: 88 notes * 2 states (pressed, sustained).
-    # Output shape: 88 velocities (one for each note)
+    # Output shape: 88 velocities (one for each note).
     number_of_notes = 88
     input_size = number_of_notes * 2
     output_size = number_of_notes
