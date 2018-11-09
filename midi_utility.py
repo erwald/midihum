@@ -17,26 +17,6 @@ OFFSET = 109-21
 PITCH_MAP = {p: i for i, p in enumerate(PITCHES)}
 
 
-def nearest_pow2(x):
-    '''Normalize input to nearest power of 2, or midpoints between
-    consecutive powers of two. Round down when halfway between two
-    possibilities.'''
-
-    low = 2**int(floor(log(x, 2)))
-    high = 2**int(ceil(log(x, 2)))
-    mid = (low + high) // 2
-
-    if x < mid:
-        high = mid
-    else:
-        low = mid
-    if high - x < x - low:
-        nearest = high
-    else:
-        nearest = low
-    return nearest
-
-
 def track_to_array_one_hot(track, ticks_per_quarter, quantization):
     '''Return array representation of a 4/4 time signature MIDI track.
 
@@ -63,7 +43,6 @@ def track_to_array_one_hot(track, ticks_per_quarter, quantization):
 
     num_steps = int(
         round(track_len_ticks / float(ticks_per_quarter)*2**quantization/4))
-    normalized_num_steps = nearest_pow2(num_steps)
 
     # Get position and velocity.
     notes.sort(key=lambda args: (args[0], -args[3]))
@@ -81,8 +60,8 @@ def track_to_array_one_hot(track, ticks_per_quarter, quantization):
             note_off_events[PITCH_MAP[note_num]].append(note_msg)
 
     # Initialise our resulting arrays with all zeroes.
-    midi_array = np.zeros((normalized_num_steps, len(PITCHES)*2))
-    velocity_array = np.zeros((normalized_num_steps, len(PITCHES)))
+    midi_array = np.zeros((num_steps, len(PITCHES)*2))
+    velocity_array = np.zeros((num_steps, len(PITCHES)))
 
     # For each pitch ...
     for index in range(len(PITCHES)):
@@ -397,7 +376,6 @@ def stylify_track(track, ticks_per_quarter, velocity_array, quantization):
 
     num_steps = int(
         round(track_len_ticks / float(ticks_per_quarter)*2**quantization/4))
-    normalized_num_steps = nearest_pow2(num_steps)
 
     # Keep track of the last used velocity in case the model failed to predict
     # velocity for a certain note (leaving it at a regrettable 0).
@@ -410,9 +388,9 @@ def stylify_track(track, ticks_per_quarter, velocity_array, quantization):
                 if time_msg.velocity > 0:
                     pos = int(cum_times[cum_index] *
                               (2**quantization/4) / (ticks_per_quarter))
-                    if pos == normalized_num_steps:
+                    if pos == num_steps:
                         pos = pos - 1
-                    if pos > normalized_num_steps:
+                    if pos > num_steps:
                         continue
 
                     velocity = velocity_array[pos, PITCH_MAP[time_msg.note]]
