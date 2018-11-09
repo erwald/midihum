@@ -188,13 +188,9 @@ def save_data(path, quant):
                 if not os.path.exists(velocity_out):
                     os.makedirs(velocity_out)
 
-                # print(out_dir)
-
-                # print('Saving MIDI array:', array_out)
-                # print('Saving velocity array:', velocity_out)
-
+                # Uncomment this to print the MIDI array in a human-readable
+                # format (for debugging purposes).
                 # print_array(mid, array)
-                # raw_input("Press Enter to continue...")
 
                 np.save(array_output_path, array)
                 np.save(velocity_output_path, velocity_array)

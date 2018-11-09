@@ -11,8 +11,6 @@ from mido import MidiFile, MidiTrack, Message, MetaMessage
 import numpy as np
 import random
 
-DEBUG = False
-
 # The MIDI pitches we use.
 PITCHES = range(21, 109, 1)
 OFFSET = 109-21
@@ -56,9 +54,6 @@ def track_to_array_one_hot(track, ticks_per_quarter, quantization):
 
     track_len_ticks = cum_times[-1]
 
-    if DEBUG:
-        print('Track length in ticks:', track_len_ticks)
-
     # Extract notes from track.
     notes = [
         (int(time * (2**quantization/4) // (ticks_per_quarter)),
@@ -72,10 +67,6 @@ def track_to_array_one_hot(track, ticks_per_quarter, quantization):
 
     # Get position and velocity.
     notes.sort(key=lambda args: (args[0], -args[3]))
-
-    if DEBUG:
-        print(num_steps)
-        print(normalized_num_steps)
 
     # Lists of note events, iow a list of lists of note on/off events. That is,
     # for each pitch we store a list of note on/off events for that pitch.
@@ -334,10 +325,6 @@ def quantize_track(track, ticks_per_quarter, quantization):
 
     # Iterate through all the MIDI messages searching for 'note on' events.
     for cum_time, msg in cum_msgs:
-        if DEBUG:
-            print('Message:', msg)
-            print('Open messages:')
-
         if msg.type == 'note_on' and msg.velocity > 0:
             # For each 'note on' event, find the next corresponding 'note off'
             # event for the same note value.
@@ -368,9 +355,6 @@ def quantize_track(track, ticks_per_quarter, quantization):
 
         index += 1
 
-        if DEBUG:
-            print('\n')
-
     # Now, sort the quantized messages by (cumulative time, note_type), making
     # sure that note_on events come before note_off events when two event have
     # the same cumulative time. Compute differential times and construct the
@@ -386,11 +370,6 @@ def quantize_track(track, ticks_per_quarter, quantization):
         np.diff([msg[0] for msg in quantized_msgs]))
     for diff_time, (cum_time, msg) in zip(diff_times, quantized_msgs):
         quantized_track.append(msg.copy(time=diff_time))
-
-    if DEBUG:
-        print('Quantized messages:')
-        pp.pprint(quantized_msgs)
-        pp.pprint(diff_times)
 
     return quantized_track
 
