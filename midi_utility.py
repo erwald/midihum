@@ -128,12 +128,18 @@ def midi_to_array_one_hot(mid, quantization):
             velocity_array = np.maximum(
                 velocity_array, np.array(track_velocity_array, dtype=int))
 
-    # Add feature denoting, for each time step, whether we are on a strong (1)
-    # or on a weak (0) beat. Iow, for 4/4 this would be 1 0 0 0 1 0 0 0 etc., 
-    # and for 3/4 it would be 1 0 0 1 0 0 1 ...
-    measure_beats = [1,0,0,0] if time_sig.numerator == 4 else [1,0,0]
+    # Add feature denoting, for each time step, whether we are on a strong (1),
+    # on a weak (0) or on a medium-strong (0.5) beat. Iow, for 2/2 this would
+    # be 1 0 1 0 1 0 1 0 etc., and for 3/4 it would be 1 0 0 1 0 0 1 ...
+    measure_beats_dict = {2: [1, 0],
+                          3: [1, 0, 0],
+                          4: [1, 0, 0.5, 0],
+                          6: [1, 0, 0, 0.5, 0, 0]}
+    assert time_sig.numerator in measure_beats_dict, 'Unsupported time signature'
+    measure_beats = measure_beats_dict[time_sig.numerator]
     number_of_measures = ceil(len(midi_array) / len(measure_beats))
-    beats = np.tile(measure_beats, number_of_measures)[:len(midi_array)][:, None]
+    beats = np.tile(measure_beats, number_of_measures)[
+        :len(midi_array)][:, None]
     midi_array = np.hstack((midi_array, beats))
 
     assert len(midi_array) == len(
