@@ -7,8 +7,8 @@ from midi_utility import *
 
 
 # Set this to process only files prefixed by the filter string. This is for
-# debugging purposes -- it can be useful then to process only one file instead
-# of all of them.
+# debugging purposes -- it can be useful then to process only one file (or a
+# subset of files) instead of all of them.
 FILE_FILTER_PREFIX = None
 
 
