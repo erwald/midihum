@@ -20,10 +20,10 @@ def batch_generator(xs, ys, batch_size):
 def create_model(batch_size):
     print('Setting up model ...')
 
-    # Input shape: 88 notes * 2 states (pressed, sustained) + 1 strong/weak beat.
+    # Input shape: 88 notes * 2 states (pressed, sustained) + 3 added features.
     # Output shape: 88 velocities (one for each note).
     number_of_notes = 88
-    input_size = number_of_notes * 2 + 1
+    input_size = number_of_notes * 2 + 3
     output_size = number_of_notes
 
     dropout = 0.2  # Drop 20% of units for linear transformation of inputs.

@@ -49,9 +49,10 @@ def load_data():
 
     # N songs of Mn timesteps, each with:
     #   - 176 (= 88 * 2) pitch classes
-    #   - 1 strong/weak beat
+    #   - 1 stress of beat (strong/weak)
+    #   - 2 number of notes played and sustained
     #
-    # Iow, each data point: [Mn, 177]
+    # Iow, each data point: [Mn, 179]
     input_data = []
 
     # N songs of Mn timesteps, each with 88 velocities.

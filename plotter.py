@@ -34,7 +34,7 @@ def prepare_input_for_plot(input_data):
         (timestep[0::2] + timestep[1::2]) / 2 for timestep in input_note_data]
 
     # Get other input data.
-    input_derived_features_data = input_data[:, number_of_note_inputs][:, None]
+    input_derived_features_data = input_data[:, number_of_note_inputs:]
 
     # Combine the columns and transpose so we get timesteps on the x-axis.
     combined_input_data = np.transpose(
@@ -61,8 +61,8 @@ def plot_prediction(filename, model, batch_size):
 
     # Plot input (note on/off).
     ax = fig.add_subplot(gs[0])
-    ax.set_title('Input (Note Events)')
-    ax.set_ylabel('Note pitches')
+    ax.set_title('Input (Note Events and Engineered Features)')
+    ax.set_ylabel('Note pitches & other features')
     plt.imshow(input_data, cmap='RdPu', vmin=0, vmax=2,
                origin='lower', interpolation='nearest', aspect='auto')
 
@@ -101,8 +101,8 @@ def plot_comparison(filename, model, batch_size):
 
     # Plot input (note on/off).
     ax = fig.add_subplot(gs[0])
-    ax.set_title('Input (Note Events)')
-    ax.set_ylabel('Note pitches')
+    ax.set_title('Input (Note Events and Engineered Features)')
+    ax.set_ylabel('Note pitches & other features')
     plt.imshow(input_data, cmap='RdPu', vmin=0,
                origin='lower', vmax=1, interpolation='nearest', aspect='auto')
 

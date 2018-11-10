@@ -128,9 +128,10 @@ def midi_to_array_one_hot(mid, quantization):
             velocity_array = np.maximum(
                 velocity_array, np.array(track_velocity_array, dtype=int))
 
-    # Add feature denoting, for each time step, whether we are on a strong (1),
-    # on a weak (0) or on a medium-strong (0.5) beat. Iow, for 2/2 this would
-    # be 1 0 1 0 1 0 1 0 etc., and for 3/4 it would be 1 0 0 1 0 0 1 ...
+    # Add feature denoting the stress of each beat; iow, for each timestep,
+    # whether we are on a strong (1), on a weak (0) or on a medium-strong (0.5)
+    # beat. Iow, for 2/2 this would be 1 0 1 0 1 0 1 0 etc., and for 3/4 it
+    # would be 1 0 0 1 0 0 1 ...
     measure_beats_dict = {2: [1, 0],
                           3: [1, 0, 0],
                           4: [1, 0, 0.5, 0],
@@ -140,11 +141,21 @@ def midi_to_array_one_hot(mid, quantization):
     number_of_measures = ceil(len(midi_array) / len(measure_beats))
     beats = np.tile(measure_beats, number_of_measures)[
         :len(midi_array)][:, None]
-    midi_array = np.hstack((midi_array, beats))
+    feature_array = np.hstack((midi_array, beats))
 
-    assert len(midi_array) == len(
+    # Add feature denoting how many new notes are played on each beat. Divide by
+    # 10 under the assumption that we can play maximum ten notes at one time.
+    played_notes_avg = (np.sum(midi_array[:, 0::2], axis=1) / 10)[:, None]
+    feature_array = np.hstack((feature_array, played_notes_avg))
+
+    # Add feature denoting how many notes are sustained on each beat. Divide by
+    # 10 under the assumption that we can play maximum ten notes at one time.
+    sustained_notes_avg = (np.sum(midi_array[:, 1::2], axis=1) / 10)[:, None]
+    feature_array = np.hstack((feature_array, sustained_notes_avg))
+
+    assert len(feature_array) == len(
         velocity_array), 'MIDI and velocity arrays of different length.'
-    return midi_array.tolist(), velocity_array.tolist()
+    return feature_array.tolist(), velocity_array.tolist()
 
 
 def print_array(mid, array, quantization=4):
