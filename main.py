@@ -104,8 +104,8 @@ if args.prepare_predictions:
 x_train, x_test, y_train, y_test = load_data()
 
 x_train = np.array(x_train)
-x_test = np.array(x_test)
 y_train = np.array(y_train)
+x_test = np.array(x_test)
 y_test = np.array(y_test)
 
 print('Train sequences: {}'.format(len(x_train)))
@@ -125,19 +125,23 @@ if args.train_model:
     model, history = model_utility.train_model(model,
                                                x_train=x_train,
                                                y_train=y_train,
+                                               x_test=x_test,
+                                               y_test=y_test,
                                                batch_size=args.batch_size,
                                                epochs=args.epochs,
                                                model_path=model_path,
                                                save_model=True)
 
-    # Take loss and MSE and add it to the existing history (iff we loaded the
-    # model) or use it as a new history, saving the result.
+    # Take metrics and add them to the existing history (iff we loaded the
+    # model, iow if we have trained the model before) or use it as a new
+    # history, saving the result.
     if args.load_model:
         new_history = np.load('{}.npy'.format(history_path)).item()
-        new_history['loss'] = np.concatenate(
-            [new_history['loss'], history.history['loss']])
-        new_history['mean_squared_error'] = np.concatenate(
-            [new_history['mean_squared_error'], history.history['mean_squared_error']])
+        metrics = ['val_loss', 'val_mean_squared_error',
+                   'loss', 'mean_squared_error']
+        for metric in metrics:
+            new_history[metric] = np.concatenate(
+                [new_history[metric], history.history[metric]])
     else:
         new_history = history.history
     np.save(history_path, new_history)
@@ -149,7 +153,7 @@ if args.train_model:
 if args.load_model or args.train_model:
     loss_and_metrics = model_utility.evaluate(
         model, x_test, y_test, batch_size=args.batch_size)
-    print('Loss and metrics:', loss_and_metrics)
+    print('Final loss and metrics:', loss_and_metrics)
 
 
 if args.predict:

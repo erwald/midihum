@@ -10,9 +10,11 @@ def plot_model_history(history, model_name):
     fig = plt.figure(figsize=(14, 11), dpi=180)
     fig.suptitle('Model Performance History', fontsize=10, fontweight='bold')
 
-    plt.plot(history['mean_squared_error'])
+    plt.plot(history['mean_squared_error'], label='Training MSE')
+    plt.plot(history['val_mean_squared_error'], label='Validation MSE')
     plt.ylabel('Loss (Mean Squared Error)')
     plt.xlabel('Epoch')
+    plt.legend()
 
     # Write to file.
     output_path = os.path.join('output', model_name + ".png")
