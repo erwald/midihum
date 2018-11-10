@@ -10,9 +10,7 @@ def plot_model_history(history, model_name):
     fig = plt.figure(figsize=(14, 11), dpi=180)
     fig.suptitle('Model Performance History', fontsize=10, fontweight='bold')
 
-    print(history.history.keys())
-
-    plt.plot(history.history['mean_squared_error'])
+    plt.plot(history['mean_squared_error'])
     plt.ylabel('Loss (Mean Squared Error)')
     plt.xlabel('Epoch')
 

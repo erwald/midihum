@@ -113,6 +113,7 @@ print('Test sequences: {}'.format(len(x_test)))
 
 model_name = 'model'
 model_path = 'models/' + model_name + '.h5'
+history_path = 'models/history'
 
 if args.load_model:
     print('Loading model ...')
@@ -128,7 +129,21 @@ if args.train_model:
                                                epochs=args.epochs,
                                                model_path=model_path,
                                                save_model=True)
-    plotter.plot_model_history(history, model_name)
+
+    # Take loss and MSE and add it to the existing history (iff we loaded the
+    # model) or use it as a new history, saving the result.
+    if args.load_model:
+        new_history = np.load('{}.npy'.format(history_path)).item()
+        new_history['loss'] = np.concatenate(
+            [new_history['loss'], history.history['loss']])
+        new_history['mean_squared_error'] = np.concatenate(
+            [new_history['mean_squared_error'], history.history['mean_squared_error']])
+    else:
+        new_history = history.history
+    np.save(history_path, new_history)
+
+    # Plot history.
+    plotter.plot_model_history(new_history, model_name)
 
 # Evaluate iff we have a model that has at some point been trained.
 if args.load_model or args.train_model:
