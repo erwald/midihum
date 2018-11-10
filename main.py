@@ -47,8 +47,11 @@ def load_data():
     names = utility.map_removing_none(
         maybe_add_name, enumerate(os.listdir(midi_data_inputs_path)))
 
-    # N songs of Mn timesteps, each with 176 (= 88 * 2) pitch classes.
-    # Iow, each data point: [Mn, 176]
+    # N songs of Mn timesteps, each with:
+    #   - 176 (= 88 * 2) pitch classes
+    #   - 1 strong/weak beat
+    #
+    # Iow, each data point: [Mn, 177]
     input_data = []
 
     # N songs of Mn timesteps, each with 88 velocities.

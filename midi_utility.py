@@ -127,6 +127,14 @@ def midi_to_array_one_hot(mid, quantization):
             velocity_array = np.maximum(
                 velocity_array, np.array(track_velocity_array, dtype=int))
 
+    # Add feature denoting, for each time step, whether we are on a strong (1)
+    # or on a weak (0) beat. Iow, for 4/4 this would be 1 0 0 0 1 0 0 0 etc., 
+    # and for 3/4 it would be 1 0 0 1 0 0 1 ...
+    measure_beats = [1,0,0,0] if time_sig.numerator == 4 else [1,0,0]
+    number_of_measures = ceil(len(midi_array) / len(measure_beats))
+    beats = np.tile(measure_beats, number_of_measures)[:len(midi_array)][:, None]
+    midi_array = np.hstack((midi_array, beats))
+
     assert len(midi_array) == len(
         velocity_array), 'MIDI and velocity arrays of different length.'
     return midi_array.tolist(), velocity_array.tolist()

@@ -22,14 +22,33 @@ def plot_model_history(history, model_name):
     plt.close(fig)
 
 
+def prepare_input_for_plot(input_data):
+    '''Takes an input array and moulds it into something that will look nice
+    when plotted. Returning the moulded array.'''
+
+    number_of_note_inputs = 88 * 2
+
+    # Get note data and combine note columns into one for each note.
+    input_note_data = input_data[:, :number_of_note_inputs]
+    input_note_sustains = [
+        (timestep[0::2] + timestep[1::2]) / 2 for timestep in input_note_data]
+
+    # Get other input data.
+    input_derived_features_data = input_data[:, number_of_note_inputs][:, None]
+
+    # Combine the columns and transpose so we get timesteps on the x-axis.
+    combined_input_data = np.transpose(
+        np.hstack((input_note_sustains, input_derived_features_data)))
+
+    return combined_input_data
+
+
 def plot_prediction(filename, model, batch_size):
     prediction_data_path = os.path.join(
         './input_valid_inputs', filename + '.npy')
 
-    # Load the data and transpose so we get timesteps on the x-axis.
-    input_note_data = np.load(prediction_data_path)
-    input_note_sustains = np.transpose(
-        [timestep[0::2] + timestep[1::2] for timestep in input_note_data])
+    # Load the data and prepare it for plotting.
+    input_data = prepare_input_for_plot(np.load(prediction_data_path))
     prediction = np.transpose(model_utility.predict(
         model, path=prediction_data_path, batch_size=batch_size))
 
@@ -44,7 +63,7 @@ def plot_prediction(filename, model, batch_size):
     ax = fig.add_subplot(gs[0])
     ax.set_title('Input (Note Events)')
     ax.set_ylabel('Note pitches')
-    plt.imshow(input_note_sustains, cmap='RdPu', vmin=0, vmax=2,
+    plt.imshow(input_data, cmap='RdPu', vmin=0, vmax=2,
                origin='lower', interpolation='nearest', aspect='auto')
 
     # Plot predicted velocities.
@@ -66,10 +85,9 @@ def plot_comparison(filename, model, batch_size):
     true_velocities_path = os.path.join(
         './midi_data_valid_quantized_velocities', filename + '.npy')
 
-    # Load the data and transpose so we get timesteps on the x-axis.
-    input_note_data = np.load(prediction_data_path)
-    input_note_sustains = np.transpose(
-        [timestep[0::2] + timestep[1::2] for timestep in input_note_data])
+    # Load the data and prepare it for plotting.
+    input_data = prepare_input_for_plot(np.load(prediction_data_path))
+
     prediction = np.transpose(model_utility.predict(
         model, path=prediction_data_path, batch_size=batch_size))
     true_velocities = np.transpose(np.load(true_velocities_path))
@@ -85,8 +103,8 @@ def plot_comparison(filename, model, batch_size):
     ax = fig.add_subplot(gs[0])
     ax.set_title('Input (Note Events)')
     ax.set_ylabel('Note pitches')
-    plt.imshow(input_note_sustains, cmap='RdPu', vmin=0,
-               origin='lower', vmax=2, interpolation='nearest', aspect='auto')
+    plt.imshow(input_data, cmap='RdPu', vmin=0,
+               origin='lower', vmax=1, interpolation='nearest', aspect='auto')
 
     # Plot predicted velocities.
     ax = fig.add_subplot(gs[1])
