@@ -100,7 +100,8 @@ def midi_to_array_one_hot(mid, quantization):
 
     time_sig_msgs = [msg for msg in mid.tracks[0]
                      if msg.type == 'time_signature']
-    assert len(time_sig_msgs) == 1, 'No time signature found'
+    assert len(time_sig_msgs) > 0, 'No time signature found'
+    assert len(time_sig_msgs) < 2, 'More than one time signature found'
     time_sig = time_sig_msgs[0]
     assert time_sig.numerator == 4 and time_sig.denominator == 4, 'Not 4/4 time.'
 
