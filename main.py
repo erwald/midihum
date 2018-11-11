@@ -53,8 +53,9 @@ def load_data():
     #   - 2 number of notes played and sustained
     #   - 1 time progression
     #   - 1 average pitch value
+    #   - 9 values for chord quality (minor, major, suspended, etc.)
     #
-    # Iow, each data point: [Mn, 180]
+    # Iow, each data point: [Mn, 190]
     input_data = []
 
     # N songs of Mn timesteps, each with 88 velocities.

@@ -23,7 +23,7 @@ def create_model(batch_size):
     # Input shape: 88 notes * 2 states (pressed, sustained) + 5 added features.
     # Output shape: 88 velocities (one for each note).
     number_of_notes = 88
-    input_size = number_of_notes * 2 + 5
+    input_size = number_of_notes * 2 + 14
     output_size = number_of_notes
 
     dropout = 0.2  # Drop 20% of units for linear transformation of inputs.
