@@ -153,6 +153,11 @@ def midi_to_array_one_hot(mid, quantization):
     sustained_notes_avg = (np.sum(midi_array[:, 1::2], axis=1) / 10)[:, None]
     feature_array = np.hstack((feature_array, sustained_notes_avg))
 
+    # Add feature denoting how at which point of the song we are timewise, from
+    # 0 (at the very start of it) to 1 (at the very end of it).
+    time = (np.arange(0, len(midi_array)) / (len(midi_array) - 1))[:, None]
+    feature_array = np.hstack((feature_array, time))
+
     assert len(feature_array) == len(
         velocity_array), 'MIDI and velocity arrays of different length.'
     return feature_array.tolist(), velocity_array.tolist()
