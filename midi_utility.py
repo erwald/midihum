@@ -240,64 +240,6 @@ def quantize_tick(tick, ticks_per_quarter, quantization):
     return quantized_ticks
 
 
-def unquantize(mid, style_mid):
-    unquantized_mid = copy.deepcopy(mid)
-
-    # By convention, Track 0 contains metadata and Track 1 contains
-    # the note on and note off events.
-    for orig_note_track_idx, orig_note_track in get_note_tracks(mid):
-        for _, style_note_track in get_note_tracks(style_mid):
-
-            note_track = unquantize_track(orig_note_track, style_note_track)
-            unquantized_mid.tracks[orig_note_track_idx] = note_track
-
-    return unquantized_mid
-
-
-def unquantize_track(orig_track, style_track):
-    '''Returns the unquantised orig_track with encoded velocities from the style_track.
-
-    Arguments:
-    orig_track -- Non-quantised MIDI object
-    style_track -- Quantised and stylised MIDI object '''
-
-    for i, msg in enumerate(orig_track):
-        if msg.type == 'note_on':
-            orig_first_note_msg_idx = i
-            break
-
-    for i, msg in enumerate(style_track):
-        if msg.type == 'note_on':
-            style_first_note_msg_idx = i
-            break
-
-    orig_cum_msgs = zip(
-        np.cumsum([msg.time for msg in orig_track[orig_first_note_msg_idx:]]),
-        [msg for msg in orig_track[orig_first_note_msg_idx:]])
-
-    style_cum_msgs = zip(
-        np.cumsum([msg.time for msg in style_track[style_first_note_msg_idx:]]),
-        [msg for msg in style_track[style_first_note_msg_idx:]])
-
-    orig_cum_msgs.sort(key=lambda cumTimeAndMsg: cumTimeAndMsg[0])
-    style_cum_msgs.sort(key=lambda cumTimeAndMsg: cumTimeAndMsg[0])
-
-    remaining_msgs = defaultdict(list)
-
-    for cum_time, msg in orig_cum_msgs:
-        if msg.type == 'note_on' and msg.velocity > 0:
-            remaining_msgs[msg.note].append((cum_time, msg))
-
-    for i, (cum_time, msg) in enumerate(style_cum_msgs):
-        if msg.type == 'note_on' and msg.velocity > 0:
-            remaining_msgs = remaining_msgs[msg.note]
-            _, note_on_msg = remaining_msgs[0]
-            note_on_msg.velocity = msg.velocity
-            remaining_msgs[msg.note] = remaining_msgs[1:]
-
-    return orig_track
-
-
 def quantize(mid, quantization=5):
     '''Return a midi object whose notes are quantized to
     1/2**quantization notes.
