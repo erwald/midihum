@@ -10,6 +10,7 @@ import mido
 from mido import MidiFile, MidiTrack, Message, MetaMessage
 import numpy as np
 import random
+from utility import replace_nan_with_average
 
 # The MIDI pitches we use.
 PITCHES = range(21, 109, 1)
@@ -158,8 +159,25 @@ def midi_to_array_one_hot(mid, quantization):
     time = (np.arange(0, len(midi_array)) / (len(midi_array) - 1))[:, None]
     feature_array = np.hstack((feature_array, time))
 
-    assert len(feature_array) == len(
-        velocity_array), 'MIDI and velocity arrays of different length.'
+    # Add a feature denoting, for each timestep, the average pitch value for the
+    # notes played or sustained at that point.
+    notes = np.maximum(midi_array[:, 0::2], midi_array[:, 1::2])
+    pitch_values = [[i for i, is_played in enumerate(
+        timestep) if is_played == 1] for timestep in notes]
+    pitch_value_avg = [np.average(
+        step) if len(step) > 0 else np.nan for step in pitch_values]
+    pitch_value_avg = np.array(pitch_value_avg, dtype=np.float64)[:, None]
+
+    # When no notes are sounded, we have nan. Replace all of those with the
+    # average pitch for the whole song.
+    pitch_value_avg = replace_nan_with_average(pitch_value_avg)
+
+    feature_array = np.hstack((feature_array, pitch_value_avg))
+
+    assert(not np.isnan(feature_array).any(),
+           'Feature array should contain real numbers')
+    assert(len(feature_array) == len(velocity_array),
+           'MIDI and velocity arrays of different length')
     return feature_array.tolist(), velocity_array.tolist()
 
 

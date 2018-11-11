@@ -52,6 +52,7 @@ def load_data():
     #   - 1 stress of beat (strong/weak)
     #   - 2 number of notes played and sustained
     #   - 1 time progression
+    #   - 1 average pitch value
     #
     # Iow, each data point: [Mn, 180]
     input_data = []
