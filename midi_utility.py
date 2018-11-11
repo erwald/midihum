@@ -174,8 +174,12 @@ def midi_to_array_one_hot(mid, quantization):
 
     feature_array = np.hstack((feature_array, pitch_value_avg))
 
-    assert(not np.isnan(feature_array).any(),
-           'Feature array should contain real numbers')
+    assert (not np.isnan(feature_array).any()
+            ), 'Feature array should contain real numbers'
+    assert np.amax(
+        feature_array) <= 1, 'Feature array should not contain numbers over 1'
+    assert np.amin(
+        feature_array) >= 0, 'Feature array should not contain negative numbers'
     assert(len(feature_array) == len(velocity_array),
            'MIDI and velocity arrays of different length')
     return feature_array.tolist(), velocity_array.tolist()
