@@ -145,13 +145,13 @@ def midi_to_array_one_hot(mid, quantization):
     feature_array = np.hstack((midi_array, beats))
 
     # Add feature denoting how many new notes are played on each beat. Divide by
-    # 10 under the assumption that we can play maximum ten notes at one time.
-    played_notes_avg = (np.sum(midi_array[:, 0::2], axis=1) / 10)[:, None]
+    # 20 under the assumption that we can play no more notes at any one time.
+    played_notes_avg = (np.sum(midi_array[:, 0::2], axis=1) / 20)[:, None]
     feature_array = np.hstack((feature_array, played_notes_avg))
 
     # Add feature denoting how many notes are sustained on each beat. Divide by
-    # 10 under the assumption that we can play maximum ten notes at one time.
-    sustained_notes_avg = (np.sum(midi_array[:, 1::2], axis=1) / 10)[:, None]
+    # 20 under the assumption that we can play no more notes at any one time.
+    sustained_notes_avg = (np.sum(midi_array[:, 1::2], axis=1) / 20)[:, None]
     feature_array = np.hstack((feature_array, sustained_notes_avg))
 
     # Add feature denoting how at which point of the song we are timewise, from
@@ -165,7 +165,7 @@ def midi_to_array_one_hot(mid, quantization):
     pitch_values = [[i for i, is_played in enumerate(
         timestep) if is_played == 1] for timestep in notes]
     pitch_value_avg = [np.average(
-        step) if len(step) > 0 else np.nan for step in pitch_values]
+        step) / 88 if len(step) > 0 else np.nan for step in pitch_values]
     pitch_value_avg = np.array(pitch_value_avg, dtype=np.float64)[:, None]
 
     # When no notes are sounded, we have nan. Replace all of those with the
