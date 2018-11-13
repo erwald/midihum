@@ -12,12 +12,13 @@ from midi_utility import *
 FILE_FILTER_PREFIX = None
 
 
-def validate_data(path, quant):
+def validate_data(path, quant, overwrite_existing=False):
     '''Creates a folder containing valid MIDI files.
 
     Arguments:
     path -- Original directory containing untouched midis.
-    quant -- Level of quantisation'''
+    quant -- Level of quantisation
+    overwrite_existing -- Validates files even if validated copies already exist.'''
 
     path_prefix, path_suffix = os.path.split(path)
 
@@ -40,7 +41,7 @@ def validate_data(path, quant):
             output_file_path = os.path.join(base_path_out, file)
 
             # If the file has already been validated, proceed to the next one.
-            if os.path.isfile(output_file_path):
+            if os.path.isfile(output_file_path) and not overwrite_existing:
                 continue
 
             is_filtered_out = FILE_FILTER_PREFIX and not file.startswith(
@@ -87,12 +88,13 @@ def validate_data(path, quant):
             print('\t', skipped_file_name)
 
 
-def quantize_data(path, quant):
+def quantize_data(path, quant, overwrite_existing=False):
     '''Creates a folder containing the quantised MIDI files.
 
     Arguments:
     path -- Validated directory containing midis.
-    quant -- Level of quantisation'''
+    quant -- Level of quantisation
+    overwrite_existing -- Quantizes files even if quantized copies already exist.'''
 
     path_prefix, path_suffix = os.path.split(path)
 
@@ -113,7 +115,7 @@ def quantize_data(path, quant):
             output_file_path = os.path.join(out_dir, file)
 
             # If the file has already been quantized, proceed to the next one.
-            if os.path.isfile(output_file_path):
+            if os.path.isfile(output_file_path) and not overwrite_existing:
                 continue
 
             is_filtered_out = FILE_FILTER_PREFIX and not file.startswith(
@@ -136,12 +138,13 @@ def quantize_data(path, quant):
         processed_count, total_file_count))
 
 
-def save_data(path, quant):
+def save_data(path, quant, overwrite_existing=False):
     '''Creates a folder containing the quantised MIDI files.
 
     Arguments:
     path -- Quantised directory containing midis.
-    quant -- Level of quantisation'''
+    quant -- Level of quantisation
+    overwrite_existing -- Saves files even if processed already exist.'''
 
     path_prefix, path_suffix = os.path.split(path)
 
@@ -164,7 +167,7 @@ def save_data(path, quant):
 
             # If the file has already been saved as data, proceed.
             if (os.path.isfile(array_output_path) and
-                    os.path.isfile(velocity_output_path)):
+                    os.path.isfile(velocity_output_path)) and not overwrite_existing:
                 continue
 
             is_filtered_out = FILE_FILTER_PREFIX and not file.startswith(

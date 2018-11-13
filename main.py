@@ -18,6 +18,8 @@ parser.add_argument('--prepare-midi', action='store_true',
                     help='validates, quantizes and saves train and test midi data')
 parser.add_argument('--prepare-predictions', action='store_true',
                     help='validates, quantizes and saves prediction midi data')
+parser.add_argument('--overwrite-existing', action='store_true',
+                    help='prepares midi data even if processed files already exist')
 parser.add_argument('--include-baseline', action='store_true',
                     help='also outputs a midi file with static velocities')
 parser.add_argument('--batch-size', default=4, type=int, help='batch size')
@@ -98,9 +100,12 @@ quantization = 4
 if args.prepare_midi:
     print('Preparing train and test MIDI data ...')
 
-    file_utility.validate_data(midi_data_path, quantization)
-    file_utility.quantize_data(midi_data_valid_path, quantization)
-    file_utility.save_data(midi_data_valid_quantized_path, quantization)
+    file_utility.validate_data(
+        midi_data_path, quantization, args.overwrite_existing)
+    file_utility.quantize_data(
+        midi_data_valid_path, quantization, args.overwrite_existing)
+    file_utility.save_data(midi_data_valid_quantized_path,
+                           quantization, args.overwrite_existing)
 
 if args.prepare_predictions:
     print('Preparing prediction MIDI data ...')
