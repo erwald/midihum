@@ -325,8 +325,6 @@ def quantize_track(track, ticks_per_quarter, quantization):
     quantization -- The note duration, represented as
       1/2**quantization.'''
 
-    pp = pprint.PrettyPrinter()
-
     # Message timestamps are represented as differences between
     # consecutive events. Annotate messages with cumulative timestamps.
 
