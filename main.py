@@ -10,6 +10,7 @@ import midi_utility
 import model_utility
 import utility
 import plotter
+from plot_comparison_callback import PlotComparison
 
 np.set_printoptions(threshold=np.inf)
 
@@ -33,21 +34,38 @@ parser.add_argument('-l', '--load-model', action='store_true',
 parser.add_argument('-t', '--train-model', action='store_true',
                     help='trains the model for the set number of epochs')
 
+# Constants
+midi_data_inputs_path = './midi_data_valid_quantized_inputs'
+midi_data_velocities_path = './midi_data_valid_quantized_velocities'
+
+midi_data_path = './midi_data'
+midi_data_valid_path = './midi_data_valid'
+midi_data_valid_quantized_path = './midi_data_valid_quantized'
+
+predictables_path = './input'
+predictables_valid_path = './input_valid'
+
+data_path = './data'
+training_set_path = os.path.join(data_path, 'training')
+velocities_path = os.path.join(data_path, 'velocities')
+validation_set_path = os.path.join(data_path, 'validation')
+
+quantization = 4
+
+
+def midi_data_filenames():
+    def maybe_add_name(filename):
+        return filename[1] if filename[1].split('.')[-1] == 'npy' else None
+
+    return utility.map_removing_none(
+        maybe_add_name, enumerate(os.listdir(midi_data_inputs_path)))
+
 
 def load_data():
     '''Loads the musical performances and returns sets of inputs and labels
     (notes and resulting velocities), one for testing and one for training.'''
 
     print('Loading data ...')
-
-    midi_data_inputs_path = './midi_data_valid_quantized_inputs'
-    midi_data_velocities_path = './midi_data_valid_quantized_velocities'
-
-    def maybe_add_name(filename):
-        return filename[1] if filename[1].split('.')[-1] == 'npy' else None
-
-    names = utility.map_removing_none(
-        maybe_add_name, enumerate(os.listdir(midi_data_inputs_path)))
 
     # N songs of Mn timesteps, each with:
     #   - 176 (= 88 * 2) pitch classes
@@ -63,6 +81,8 @@ def load_data():
     # N songs of Mn timesteps, each with 88 velocities.
     # Iow, each data point: [Mn, 88]
     velocity_data = []
+
+    names = midi_data_filenames()
 
     for i, filename in enumerate(names):
         abs_inputs_path = os.path.join(midi_data_inputs_path, filename)
@@ -82,20 +102,6 @@ def load_data():
 
 
 args = parser.parse_args()
-
-midi_data_path = './midi_data'
-midi_data_valid_path = './midi_data_valid'
-midi_data_valid_quantized_path = './midi_data_valid_quantized'
-
-predictables_path = './input'
-predictables_valid_path = './input_valid'
-
-data_path = './data'
-training_set_path = os.path.join(data_path, 'training')
-velocities_path = os.path.join(data_path, 'velocities')
-validation_set_path = os.path.join(data_path, 'validation')
-
-quantization = 4
 
 if args.prepare_midi:
     print('Preparing train and test MIDI data ...')
@@ -134,6 +140,13 @@ else:
     model = model_utility.create_model(batch_size=args.batch_size)
 
 if args.train_model:
+    # Get some MIDI file the prediction for which to plot after each epoch.
+    # (It'd be nicer to get one specifically from the validation set, but that's
+    # for future me to do.)
+    any_filename = os.path.splitext(sorted(midi_data_filenames())[0])[0]
+    plot_comparison_callback = PlotComparison(
+        model, any_filename, args.batch_size)
+
     model, history = model_utility.train_model(model,
                                                x_train=x_train,
                                                y_train=y_train,
@@ -142,7 +155,8 @@ if args.train_model:
                                                batch_size=args.batch_size,
                                                epochs=args.epochs,
                                                model_path=model_path,
-                                               save_model=True)
+                                               save_model=True,
+                                               callbacks=[plot_comparison_callback])
 
     # Take metrics and add them to the existing history (iff we loaded the
     # model, iow if we have trained the model before) or use it as a new

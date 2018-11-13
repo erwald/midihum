@@ -79,7 +79,7 @@ def plot_prediction(filename, model, batch_size):
     plt.close(fig)
 
 
-def plot_comparison(filename, model, batch_size):
+def plot_comparison(filename, model, batch_size, suffix=''):
     prediction_data_path = os.path.join(
         './midi_data_valid_quantized_inputs', filename + '.npy')
     true_velocities_path = os.path.join(
@@ -122,6 +122,7 @@ def plot_comparison(filename, model, batch_size):
                origin='lower', interpolation='nearest', aspect='auto')
 
     # Write to file.
-    output_path = os.path.join('output', filename.split('.')[0] + ".png")
+    name_with_suffix = '{}{}'.format(filename.split('.')[0], suffix)
+    output_path = os.path.join('output', name_with_suffix + ".png")
     plt.savefig(output_path, bbox_inches='tight')
     plt.close(fig)

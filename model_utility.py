@@ -45,7 +45,7 @@ def create_model(batch_size):
     return model
 
 
-def train_model(model, x_train, y_train, x_test, y_test, batch_size, epochs, model_path, save_model=False):
+def train_model(model, x_train, y_train, x_test, y_test, batch_size, epochs, model_path, save_model=False, callbacks=[]):
     print('Training model ...')
 
     number_of_train_batches = np.ceil(len(x_train)/float(batch_size))
@@ -53,6 +53,7 @@ def train_model(model, x_train, y_train, x_test, y_test, batch_size, epochs, mod
     history = model.fit_generator(batch_generator(x_train, y_train, batch_size),
                                   steps_per_epoch=number_of_train_batches,
                                   epochs=epochs,
+                                  callbacks=callbacks,
                                   validation_data=batch_generator(
                                       x_test, y_test, batch_size),
                                   validation_steps=number_of_validate_batches)

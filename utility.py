@@ -6,7 +6,7 @@ def exists(it):
 
 
 def map_removing_none(function, sequence):
-    return filter(exists, map(function, sequence))
+    return list(filter(exists, map(function, sequence)))
 
 
 def replace_nan_with_average(array):
