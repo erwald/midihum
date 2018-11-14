@@ -211,7 +211,7 @@ if args.include_baseline and args.predict:
 
     input_data = np.load(input_data_path)
     input_length = input_data.shape[0]
-    output_size = input_data.shape[1] // 2
+    output_size = 88  # The number of notes on a grand piano.
     velocities = np.full((input_length, output_size), 0.5)  # Velocity of 63.5.
 
     midi_file = MidiFile(input_midi_path)
