@@ -118,5 +118,6 @@ midi_data_valid_quantized/
 midi_data_valid_quantized_inputs/
 midi_data_valid_quantized_velocities/
 output/
+output_model/
 output_baseline/
 models/

@@ -1,4 +1,5 @@
 import os
+import glob
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as grd
@@ -17,7 +18,7 @@ def plot_model_history(history, model_name):
     plt.legend()
 
     # Write to file.
-    output_path = os.path.join('output', model_name + ".png")
+    output_path = os.path.join('output_model', model_name + ".png")
     plt.savefig(output_path, bbox_inches='tight')
     plt.close(fig)
 
@@ -45,7 +46,7 @@ def prepare_input_for_plot(input_data):
 
 def plot_prediction(filename, model, batch_size):
     prediction_data_path = os.path.join(
-        './input_valid_inputs', filename + '.npy')
+        './input_valid_inputs', filename + '.mid.npy')
 
     # Load the data and prepare it for plotting.
     input_data = prepare_input_for_plot(np.load(prediction_data_path))
@@ -79,18 +80,65 @@ def plot_prediction(filename, model, batch_size):
     plt.close(fig)
 
 
+def plot_augmented_sample(filename):
+    original_x_path = os.path.join(
+        './midi_data_valid_quantized_inputs', '{}.mid.npy'.format(filename))
+    x_paths = [original_x_path] + glob.glob(os.path.join(
+        './midi_data_valid_quantized_inputs', '{}_*.mid.npy'.format(filename)))
+    original_y_path = os.path.join(
+        './midi_data_valid_quantized_velocities', '{}.mid.npy'.format(filename))
+    y_paths = [original_y_path] + glob.glob(os.path.join(
+        './midi_data_valid_quantized_velocities', '{}_*.mid.npy'.format(filename)))
+
+    print('Plotting an augmented sample ...')
+
+    fig = plt.figure(figsize=(32, 24), dpi=300)
+    fig.suptitle(filename, fontsize=10, fontweight='bold')
+
+    gs = grd.GridSpec(len(x_paths), 2)
+
+    for idx, (x_path, y_path) in enumerate(zip(x_paths, y_paths)):
+        # Load the data and prepare it for plotting.
+        input_data = prepare_input_for_plot(np.load(x_path))
+
+        # Plot input (note on/off).
+        ax = fig.add_subplot(gs[idx, 0])
+        ax.set_title('Input {}{}'.format(
+            idx + 1, ' (Original)' if idx == 0 else ''))
+        ax.set_ylabel('Note pitches & other features')
+        plt.imshow(input_data, cmap='RdPu', vmin=0, origin='lower',
+                   vmax=1, interpolation='nearest', aspect='auto')
+
+        # Plot velocities.
+        velocity_data = np.transpose(np.load(y_path))
+
+        ax = fig.add_subplot(gs[idx, 1])
+        ax.set_title('Expected Output {} (Velocities)'.format(idx + 1))
+        ax.set_xlabel('Time steps')
+        ax.set_ylabel('Note pitches')
+        plt.imshow(velocity_data, cmap='jet', vmin=0, vmax=1,
+                   origin='lower', interpolation='nearest', aspect='auto')
+
+    # Write to file.
+    output_path = os.path.join(
+        'output_model', '{}_augmented.png'.format(filename.split('.')[0]))
+    plt.savefig(output_path, bbox_inches='tight')
+    plt.close(fig)
+
+
 def plot_comparison(filename, model, batch_size, suffix=''):
     prediction_data_path = os.path.join(
-        './midi_data_valid_quantized_inputs', filename + '.npy')
+        './midi_data_valid_quantized_inputs', filename + '.mid.npy')
     true_velocities_path = os.path.join(
-        './midi_data_valid_quantized_velocities', filename + '.npy')
+        './midi_data_valid_quantized_velocities', filename + '.mid.npy')
 
     # Load the data and prepare it for plotting.
     input_data = prepare_input_for_plot(np.load(prediction_data_path))
 
     prediction = np.transpose(model_utility.predict(
         model, path=prediction_data_path, batch_size=batch_size))
-    true_velocities = np.transpose(np.load(true_velocities_path))
+    # Convert raw velocities from float -> MIDI velocity.
+    true_velocities = np.transpose(np.load(true_velocities_path)) * 127
 
     print('Plotting prediction and true velocities ...')
 

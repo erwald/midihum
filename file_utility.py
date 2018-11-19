@@ -152,8 +152,8 @@ def save_data(path, quant, overwrite_existing=False):
     if len(path_suffix) == 0:
         path_prefix, path_suffix = os.path.split(path_prefix)
 
-    array_out = os.path.join(path_prefix, path_suffix+'_inputs')
-    velocity_out = os.path.join(path_prefix, path_suffix+'_velocities')
+    array_out_dir = os.path.join(path_prefix, path_suffix + '_inputs')
+    velocity_out_dir = os.path.join(path_prefix, path_suffix + '_velocities')
 
     total_file_count = 0
     processed_count = 0
@@ -161,13 +161,15 @@ def save_data(path, quant, overwrite_existing=False):
     for root, _, files in os.walk(path):
         for file in files:
             # Calculate output file paths.
-            array_output_path = '{}.npy'.format(os.path.join(array_out, file))
-            velocity_output_path = '{}.npy'.format(
-                os.path.join(velocity_out, file))
+            name = file.split('.')[0]
+            x_output_filepath = os.path.join(
+                array_out_dir, '{}.mid.npy'.format(name))
+            y_output_filepath = os.path.join(
+                velocity_out_dir, '{}.mid.npy'.format(name))
 
             # If the file has already been saved as data, proceed.
-            if (os.path.isfile(array_output_path) and
-                    os.path.isfile(velocity_output_path)) and not overwrite_existing:
+            if (os.path.isfile(x_output_filepath) and
+                    os.path.isfile(y_output_filepath)) and not overwrite_existing:
                 continue
 
             is_filtered_out = FILE_FILTER_PREFIX and not file.startswith(
@@ -175,28 +177,38 @@ def save_data(path, quant, overwrite_existing=False):
             if (file.split('.')[-1] == 'mid' or file.split('.')[-1] == 'MID') and not is_filtered_out:
                 total_file_count += 1
 
-                print('Saving', str(file))
+                print('Converting to input data and saving', str(file))
                 mid = MidiFile(os.path.join(root, file))
 
                 try:
-                    array, velocity_array = midi_to_array_one_hot(
-                        mid, quant)
+                    arrays, velocity_arrays = midi_to_array_one_hot(mid, quant)
                 except Exception as e:
                     print("Exception converting MIDI to array:", e)
                     continue
 
-                if not os.path.exists(array_out):
-                    os.makedirs(array_out)
+                if not os.path.exists(array_out_dir):
+                    os.makedirs(array_out_dir)
 
-                if not os.path.exists(velocity_out):
-                    os.makedirs(velocity_out)
+                if not os.path.exists(velocity_out_dir):
+                    os.makedirs(velocity_out_dir)
 
                 # Uncomment this to print the MIDI array in a human-readable
                 # format (for debugging purposes).
                 # print_array(mid, array)
 
-                np.save(array_output_path, array)
-                np.save(velocity_output_path, velocity_array)
+                # Save first array (the original) with the original paths.
+                np.save(x_output_filepath, arrays[0])
+                np.save(y_output_filepath, velocity_arrays[0])
+
+                # Save additional arrays (the augmented versions of the first)
+                # with special suffixes.
+                for idx, (array, velocity_array) in enumerate(zip(arrays[1:], velocity_arrays[1:])):
+                    x_aug_output_filepath = os.path.join(
+                        array_out_dir, '{}_aug_{}.mid.npy'.format(name, idx + 1))
+                    y_aug_output_filepath = os.path.join(
+                        velocity_out_dir, '{}_aug_{}.mid.npy'.format(name, idx + 1))
+                    np.save(x_aug_output_filepath, array)
+                    np.save(y_aug_output_filepath, velocity_array)
 
                 processed_count += 1
     print('\nSaved {} files out of {}'.format(
@@ -210,7 +222,6 @@ def load_data(path):
     path -- Quantised directory path.
     quant -- Level of quantisation'''
 
-    names = []
     X_list = []
     Y_list = []
     path_prefix, path_suffix = os.path.split(path)

@@ -10,6 +10,7 @@ import mido
 from mido import MidiFile, MidiTrack, Message, MetaMessage
 import numpy as np
 import random
+from data_augmentation import augmented_data
 from feature_engineering import midi_array_with_engineered_features
 
 # The MIDI pitches we use.
@@ -93,7 +94,11 @@ def track_to_array_one_hot(track, ticks_per_quarter, quantization):
 
 
 def midi_to_array_one_hot(mid, quantization):
-    '''Return array representation of a 4/4 time signature MIDI object.
+    '''Returns a two-tuple of arrays. The first array is an array of 
+    representations of the given 4/4 time signature MIDI object, including both
+    a representation of the note values over time, as well as a number of 
+    engineered features (also over time). The second holds an array of the 
+    velocity values for the variations of that MIDI object.
 
     Arguments:
     mid -- MIDI object with a 4/4 time signature.
@@ -129,19 +134,38 @@ def midi_to_array_one_hot(mid, quantization):
             velocity_array = np.maximum(
                 velocity_array, np.array(track_velocity_array, dtype=int))
 
+    # Convert MIDI velocity -> float.
+    velocity_array = velocity_array / 127.0
+
+    # Augment data set (creating a number of variations on the sample).
+    additional_midi_arrays, additional_velocity_arrays = augmented_data(
+        midi_array, velocity_array)
+
+    # Make a new arrays with the original MIDI array first, followed by its
+    # augmented versions.
+    midi_variations_array = np.concatenate(
+        ([midi_array], additional_midi_arrays))
+    velocity_arrays = np.concatenate(
+        ([velocity_array], additional_velocity_arrays))
+
     # Get additional features (derived from the MIDI array and concatenated on
     # top of it).
-    feature_array = midi_array_with_engineered_features(midi_array, time_sig)
+    feature_arrays = np.array([midi_array_with_engineered_features(
+        variation, time_sig) for variation in midi_variations_array])
 
-    assert (not np.isnan(feature_array).any()
+    assert (not np.isnan(feature_arrays).any()
             ), 'Feature array should contain real numbers'
     assert np.amax(
-        feature_array) <= 1, 'Feature array should not contain numbers over 1'
+        feature_arrays) <= 1, 'Feature array should not contain numbers over 1'
     assert np.amin(
-        feature_array) >= 0, 'Feature array should not contain negative numbers'
-    assert(len(feature_array) == len(velocity_array),
-           'MIDI and velocity arrays of different length')
-    return feature_array.tolist(), velocity_array.tolist()
+        feature_arrays) >= 0, 'Feature array should not contain negative numbers'
+    assert np.amax(
+        velocity_arrays) <= 1, 'Velocity array should not contain numbers over 1'
+    assert np.amin(
+        velocity_arrays) >= 0, 'Velocity array should not contain negative numbers'
+    assert feature_arrays.shape[0] == velocity_arrays.shape[0], 'different number of MIDI and velocity arrays'
+    assert feature_arrays.shape[1] == velocity_arrays.shape[1], 'MIDI and velocity arrays of different length'
+    return feature_arrays, velocity_arrays
 
 
 def print_array(mid, array, quantization=4):
