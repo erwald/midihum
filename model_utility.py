@@ -26,17 +26,21 @@ def create_model(batch_size):
     input_size = number_of_notes * 2 + 14
     output_size = number_of_notes
 
-    dropout = 0.2  # Drop 20% of units for linear transformation of inputs.
+    # Drop 20% of input units for first layer and 50% for subsequent layers.
+    input_dropout = 0.2
+    hidden_dropout = 0.5
 
     model = Sequential()
-    model.add(Bidirectional(LSTM(output_size, activation='relu', return_sequences=True, dropout=dropout),
+    model.add(Bidirectional(LSTM(output_size, activation='relu', return_sequences=True, dropout=input_dropout),
                             merge_mode='sum',
                             input_shape=(None, input_size),
                             batch_input_shape=(batch_size, None, input_size)))
-    model.add(Bidirectional(LSTM(output_size, activation='relu',
-                                 return_sequences=True, dropout=dropout), merge_mode='sum'))
-    model.add(Bidirectional(LSTM(output_size, activation='tanh',
-                                 return_sequences=True, dropout=dropout), merge_mode='sum'))
+    model.add(Bidirectional(LSTM(output_size, activation='relu', return_sequences=True,
+                                 dropout=hidden_dropout), merge_mode='sum'))
+    model.add(Bidirectional(LSTM(output_size, activation='relu', return_sequences=True,
+                                 dropout=hidden_dropout), merge_mode='sum'))
+    model.add(Bidirectional(LSTM(output_size, activation='relu', return_sequences=True,
+                                 dropout=hidden_dropout), merge_mode='sum'))
     model.compile(loss='mse', optimizer=Adam(
         lr=0.001, clipnorm=1), metrics=['mse'])
 
