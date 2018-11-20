@@ -30,9 +30,9 @@ $ python3 main.py -l --prepare-predictions --predict=My_Song.mid
 
 ## How does the model look?
 
-The model is made up of three layers of bidirectional long short-term memory networks (LSTMs), each with a dropout of `0.2`. The first two layers use ReLu as their activation function, the final output layer uses tanh, which for some reason beyond my understanding seems to work best.
+The model is made up of four layers of bidirectional long short-term memory networks (LSTMs), the first with a dropout of 20% and the subsequent layers with one of 50%. All of the layers use ReLU as their activation function.
 
-It uses Adam (with a learning rate of `0.001` and a gradient clipping of `g = 10`) as its optimiser. The loss function is mean squared error. That's pretty much it -- for more details, have a look at `model_utility.py`.
+It uses Adam (with a learning rate of `0.001` and a gradient clipping of `g = 10`) as its optimiser. The loss function is mean squared error. That's pretty much it -- for more details, have a look at `model.py`.
 
 ## Whence the name?
 
