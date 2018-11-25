@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as grd
 
-import model
+from model import *
 
 
 def plot_model_history(history, model_name):
@@ -50,7 +50,7 @@ def plot_prediction(filename, model, batch_size):
 
     # Load the data and prepare it for plotting.
     input_data = prepare_input_for_plot(np.load(prediction_data_path))
-    prediction = np.transpose(model.predict(
+    prediction = np.transpose(predict(
         model, path=prediction_data_path, batch_size=batch_size))
 
     print('Plotting input and prediction ...')
@@ -134,7 +134,7 @@ def plot_comparison(filename, model, batch_size, suffix=''):
     # Load the data and prepare it for plotting.
     input_data = prepare_input_for_plot(np.load(prediction_data_path))
 
-    prediction = np.transpose(model.predict(
+    prediction = np.transpose(predict(
         model, path=prediction_data_path, batch_size=batch_size))
     # Convert raw velocities from float -> MIDI velocity.
     true_velocities = np.transpose(np.load(true_velocities_path)) * 127

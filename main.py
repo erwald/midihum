@@ -7,7 +7,7 @@ from keras.models import load_model
 # Local imports.
 import file_utility
 import midi_utility
-import model
+from model import *
 import utility
 import plotter
 from data_loader import load_data, any_midi_filename
@@ -88,7 +88,7 @@ if args.load_model:
     print('Loading model ...')
     model = load_model(model_path)
 else:
-    model = model.create_model(batch_size=args.batch_size)
+    model = create_model(batch_size=args.batch_size)
 
 if args.train_model:
     # Get some MIDI file the prediction for which to plot after each epoch.
@@ -97,16 +97,16 @@ if args.train_model:
     plot_comparison_callback = PlotComparison(
         model, any_midi_filename(), args.batch_size)
 
-    model, history = model.train_model(model,
-                                       x_train=x_train,
-                                       y_train=y_train,
-                                       x_test=x_test,
-                                       y_test=y_test,
-                                       batch_size=args.batch_size,
-                                       epochs=args.epochs,
-                                       model_path=model_path,
-                                       save_model=True,
-                                       callbacks=[plot_comparison_callback])
+    model, history = train_model(model,
+                                 x_train=x_train,
+                                 y_train=y_train,
+                                 x_test=x_test,
+                                 y_test=y_test,
+                                 batch_size=args.batch_size,
+                                 epochs=args.epochs,
+                                 model_path=model_path,
+                                 save_model=True,
+                                 callbacks=[plot_comparison_callback])
 
     # Take metrics and add them to the existing history (iff we loaded the
     # model, iow if we have trained the model before) or use it as a new
@@ -127,7 +127,7 @@ if args.train_model:
 
 # Evaluate iff we have a model that has at some point been trained.
 if args.load_model or args.train_model:
-    loss_and_metrics = model.evaluate(
+    loss_and_metrics = evaluate(
         model, x_test, y_test, batch_size=args.batch_size)
     print('Final loss and metrics:', loss_and_metrics)
 
@@ -137,8 +137,8 @@ if args.predict:
         './input_valid_inputs', args.predict + '.npy')
     prediction_midi_path = os.path.join('./input', args.predict)
 
-    prediction = model.predict(
-        model, path=prediction_data_path, batch_size=args.batch_size)
+    prediction = predict(model, path=prediction_data_path,
+                         batch_size=args.batch_size)
     prediction = np.clip(prediction, 0, 1)
 
     plotter.plot_prediction(args.predict, model=model,
