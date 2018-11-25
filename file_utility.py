@@ -79,11 +79,10 @@ def validate_data(path, quant, overwrite_existing=False):
                 midi_file.save(output_file_path)
                 processed_count += 1
 
-    print('\nValidated {} files out of {}'.format(
-        processed_count, total_file_count))
+    print(f'\nValidated {processed_count} files out of {total_file_count}')
 
     if len(skipped_file_names) > 0:
-        print('\nSkipped {} files:'.format(len(skipped_file_names)))
+        print(f'\nSkipped {len(skipped_file_names)} files:')
         for skipped_file_name in skipped_file_names:
             print('\t', skipped_file_name)
 
@@ -134,8 +133,7 @@ def quantize_data(path, quant, overwrite_existing=False):
 
                 processed_count += 1
 
-    print('\nQuantized {} files out of {}'.format(
-        processed_count, total_file_count))
+    print(f'\nQuantized {processed_count} files out of {total_file_count}')
 
 
 def save_data(path, quant, overwrite_existing=False):
@@ -162,10 +160,9 @@ def save_data(path, quant, overwrite_existing=False):
         for file in files:
             # Calculate output file paths.
             name = file.split('.')[0]
-            x_output_filepath = os.path.join(
-                array_out_dir, '{}.mid.npy'.format(name))
+            x_output_filepath = os.path.join(array_out_dir, f'{name}.mid.npy')
             y_output_filepath = os.path.join(
-                velocity_out_dir, '{}.mid.npy'.format(name))
+                velocity_out_dir, f'{name}.mid.npy')
 
             # If the file has already been saved as data, proceed.
             if (os.path.isfile(x_output_filepath) and
@@ -204,15 +201,14 @@ def save_data(path, quant, overwrite_existing=False):
                 # with special suffixes.
                 for idx, (array, velocity_array) in enumerate(zip(arrays[1:], velocity_arrays[1:])):
                     x_aug_output_filepath = os.path.join(
-                        array_out_dir, '{}_aug_{}.mid.npy'.format(name, idx + 1))
+                        array_out_dir, f'{name}_aug_{idx + 1}.mid.npy')
                     y_aug_output_filepath = os.path.join(
-                        velocity_out_dir, '{}_aug_{}.mid.npy'.format(name, idx + 1))
+                        velocity_out_dir, f'{name}_aug_{idx + 1}.mid.npy')
                     np.save(x_aug_output_filepath, array)
                     np.save(y_aug_output_filepath, velocity_array)
 
                 processed_count += 1
-    print('\nSaved {} files out of {}'.format(
-        processed_count, total_file_count))
+    print(f'\nSaved {processed_count} files out of {total_file_count}')
 
 
 def load_data(path):
