@@ -34,7 +34,7 @@ def get_name_from_filepath(filepath):
 
 
 def midi_names(name_filter='', exclusion_filter=None):
-    pattern = f'{name_filter}*.mid.npy'
+    pattern = '{}*.mid.npy'.format(name_filter)
     filepaths = glob.glob(os.path.join(midi_data_inputs_path, pattern))
     names = [get_name_from_filepath(fp) for fp in filepaths if (
         not exclusion_filter or exclusion_filter not in fp)]
@@ -46,15 +46,16 @@ def any_midi_filename():
 
 
 def validate_sample(x, y, name):
-    print(f'Validating {name} ...')
-    assert np.any(x), f'found all-zero input in: {name}'
-    assert np.all(np.isfinite(x)), f'found nan or inf input in: {name}'
-    assert np.any(y), f'found all-zero output in: {name}'
-    assert np.all(np.isfinite(y)), f'found nan or inf output in: {name}'
+    print('Validating {} ...'.format(name))
+    assert np.any(x), 'found all-zero input in: {}'.format(name)
+    assert np.all(np.isfinite(x)), 'found nan or inf input in: {}'.format(name)
+    assert np.any(y), 'found all-zero output in: {}'.format(name)
+    assert np.all(np.isfinite(
+        y)), 'found nan or inf output in: {}'.format(name)
 
     notes = x[:, :176][:, 1::2]
     assert not np.any(np.bitwise_xor(np.where(notes > 0, 1, 0), np.where(
-        y > 0, 1, 0))), f'Found a zero velocity for note in {name}'
+        y > 0, 1, 0))), 'Found a zero velocity for note in {}'.format(name)
 
 
 def load_data(test_size, random_state, validate=False):
@@ -111,6 +112,7 @@ def load_data(test_size, random_state, validate=False):
     x_test = np.array(x_test)
     y_test = np.array(y_test)
 
-    print(f'Loaded {len(x_train)} train samples and {len(x_test)} test samples')
+    print('Loaded {} train samples and {} test samples'.format(
+        len(x_train), len(x_test)))
 
     return x_train, x_test, y_train, y_test

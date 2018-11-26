@@ -87,13 +87,13 @@ def plot_prediction(filename, model, batch_size):
 
 def plot_augmented_sample(filename):
     original_x_path = os.path.join(
-        './midi_data_valid_quantized_inputs', f'{filename}.mid.npy')
+        './midi_data_valid_quantized_inputs', '{}.mid.npy'.format(filename))
     x_paths = [original_x_path] + glob.glob(os.path.join(
-        './midi_data_valid_quantized_inputs', f'{filename}_*.mid.npy'))
+        './midi_data_valid_quantized_inputs', '{}_*.mid.npy'.format(filename)))
     original_y_path = os.path.join(
-        './midi_data_valid_quantized_velocities', f'{filename}.mid.npy')
+        './midi_data_valid_quantized_velocities', '{}.mid.npy'.format(filename))
     y_paths = [original_y_path] + glob.glob(os.path.join(
-        './midi_data_valid_quantized_velocities', f'{filename}_*.mid.npy'))
+        './midi_data_valid_quantized_velocities', '{}_*.mid.npy'.format(filename)))
 
     print('Plotting an augmented sample ...')
 
@@ -108,7 +108,8 @@ def plot_augmented_sample(filename):
 
         # Plot input (note on/off).
         ax = fig.add_subplot(gs[idx, 0])
-        ax.set_title(f'Input {idx + 1}' + (' (Original)' if idx == 0 else ''))
+        ax.set_title('Input {}{}'.format(
+            idx + 1, ' (Original)' if idx == 0 else ''))
         ax.set_ylabel('Note pitches & other features')
         plt.imshow(input_data, cmap='RdPu', vmin=0, origin='lower',
                    vmax=1, interpolation='nearest', aspect='auto')
@@ -117,7 +118,7 @@ def plot_augmented_sample(filename):
         velocity_data = np.transpose(np.load(y_path))
 
         ax = fig.add_subplot(gs[idx, 1])
-        ax.set_title(f'Expected Output {idx + 1} (Velocities)')
+        ax.set_title('Expected Output {} (Velocities)'.format(idx + 1))
         ax.set_xlabel('Time steps')
         ax.set_ylabel('Note pitches')
         plt.imshow(velocity_data, cmap='jet', vmin=0, vmax=1,
@@ -127,8 +128,8 @@ def plot_augmented_sample(filename):
         os.makedirs(model_output_dir)
 
     # Write to file.
-    name = filename.split('.')[0]
-    output_path = os.path.join(model_output_dir, f'{name}_augmented.png')
+    output_path = os.path.join(
+        model_output_dir, '{}_augmented.png'.format(filename.split('.')[0]))
     plt.savefig(output_path, bbox_inches='tight')
     plt.close(fig)
 
@@ -177,7 +178,7 @@ def plot_comparison(filename, model, batch_size, suffix=''):
                origin='lower', interpolation='nearest', aspect='auto')
 
     # Write to file.
-    name = filename.split('.')[0]
-    output_path = os.path.join('output', f'{name}{suffix}.png')
+    name_with_suffix = '{}{}'.format(filename.split('.')[0], suffix)
+    output_path = os.path.join('output', name_with_suffix + ".png")
     plt.savefig(output_path, bbox_inches='tight')
     plt.close(fig)

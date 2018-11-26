@@ -77,8 +77,8 @@ if args.prepare_predictions:
 x_train, x_test, y_train, y_test = load_data(
     test_size=0.05, random_state=1988, validate=args.prepare_midi)
 
-print(f'Train sequences: {len(x_train)}')
-print(f'Test sequences: {len(x_test)}')
+print('Train sequences: {}'.format(len(x_train)))
+print('Test sequences: {}'.format(len(x_test)))
 
 model_name = 'model'
 model_path = os.path.join('models', model_name + '.h5')
@@ -112,7 +112,7 @@ if args.train_model:
     # model, iow if we have trained the model before) or use it as a new
     # history, saving the result.
     if args.load_model:
-        new_history = np.load(f'{history_path}.npy').item()
+        new_history = np.load('{}.npy'.format(history_path)).item()
         metrics = ['val_loss', 'val_mean_squared_error',
                    'loss', 'mean_squared_error']
         for metric in metrics:
