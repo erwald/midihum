@@ -6,6 +6,8 @@ import matplotlib.gridspec as grd
 
 from model import *
 
+model_output_dir = 'output_model'
+
 
 def plot_model_history(history, model_name):
     fig = plt.figure(figsize=(14, 11), dpi=180)
@@ -17,8 +19,11 @@ def plot_model_history(history, model_name):
     plt.xlabel('Epoch')
     plt.legend()
 
+    if not os.path.exists(model_output_dir):
+        os.makedirs(model_output_dir)
+
     # Write to file.
-    output_path = os.path.join('output_model', model_name + ".png")
+    output_path = os.path.join(model_output_dir, model_name + ".png")
     plt.savefig(output_path, bbox_inches='tight')
     plt.close(fig)
 
@@ -118,9 +123,12 @@ def plot_augmented_sample(filename):
         plt.imshow(velocity_data, cmap='jet', vmin=0, vmax=1,
                    origin='lower', interpolation='nearest', aspect='auto')
 
+    if not os.path.exists(model_output_dir):
+        os.makedirs(model_output_dir)
+
     # Write to file.
     name = filename.split('.')[0]
-    output_path = os.path.join('output_model', f'{name}_augmented.png')
+    output_path = os.path.join(model_output_dir, f'{name}_augmented.png')
     plt.savefig(output_path, bbox_inches='tight')
     plt.close(fig)
 
