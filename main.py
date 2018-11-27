@@ -64,9 +64,9 @@ if args.prepare_predictions:
 # Load the prepared .npy data (validating only if we actually generated any data
 # in this session).
 #
-# Set aside 5% (too greedy?) of the data set for validation.
+# Set aside 10% of the data set for validation.
 x_train, x_test, y_train, y_test = load_data(
-    test_size=0.05, random_state=1988, validate=args.prepare_midi)
+    test_size=0.1, random_state=1988, validate=args.prepare_midi)
 
 print('Train sequences: {}'.format(len(x_train)))
 print('Test sequences: {}'.format(len(x_test)))
