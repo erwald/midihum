@@ -40,7 +40,7 @@ def create_model(batch_size):
     model.add(Bidirectional(LSTM(output_size, activation='relu', return_sequences=True,
                                  dropout=hidden_dropout), merge_mode='sum'))
     model.compile(loss='mse', optimizer=Adam(
-        lr=0.001, clipnorm=1), metrics=['mse'])
+        lr=1e-3, clipnorm=1), metrics=['mse'])
 
     print(model.summary())
 
