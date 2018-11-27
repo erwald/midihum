@@ -6,10 +6,18 @@ import matplotlib.gridspec as grd
 
 from model import *
 
+output_dir = 'output'
 model_output_dir = 'output_model'
 
 
+def create_directories():
+    dirs = [output_dir, model_output_dir]
+    [os.makedirs(d) for d in dirs if not os.path.exists(d)]
+
+
 def plot_model_history(history, model_name):
+    create_directories()
+
     fig = plt.figure(figsize=(14, 11), dpi=180)
     fig.suptitle('Model Performance History', fontsize=10, fontweight='bold')
 
@@ -18,9 +26,6 @@ def plot_model_history(history, model_name):
     plt.ylabel('Loss (Mean Squared Error)')
     plt.xlabel('Epoch')
     plt.legend()
-
-    if not os.path.exists(model_output_dir):
-        os.makedirs(model_output_dir)
 
     # Write to file.
     output_path = os.path.join(model_output_dir, model_name + ".png")
@@ -50,6 +55,8 @@ def prepare_input_for_plot(input_data):
 
 
 def plot_prediction(filename, model, batch_size):
+    create_directories()
+
     prediction_data_path = os.path.join(
         './input_valid_inputs', filename + '.mid.npy')
 
@@ -80,12 +87,14 @@ def plot_prediction(filename, model, batch_size):
                origin='lower', interpolation='nearest', aspect='auto')
 
     # Write to file.
-    output_path = os.path.join('output', filename.split('.')[0] + ".png")
+    output_path = os.path.join(output_dir, filename.split('.')[0] + ".png")
     plt.savefig(output_path, bbox_inches='tight')
     plt.close(fig)
 
 
 def plot_augmented_sample(filename):
+    create_directories()
+
     original_x_path = os.path.join(
         './midi_data_valid_quantized_inputs', '{}.mid.npy'.format(filename))
     x_paths = [original_x_path] + glob.glob(os.path.join(
@@ -124,9 +133,6 @@ def plot_augmented_sample(filename):
         plt.imshow(velocity_data, cmap='jet', vmin=0, vmax=1,
                    origin='lower', interpolation='nearest', aspect='auto')
 
-    if not os.path.exists(model_output_dir):
-        os.makedirs(model_output_dir)
-
     # Write to file.
     output_path = os.path.join(
         model_output_dir, '{}_augmented.png'.format(filename.split('.')[0]))
@@ -135,6 +141,8 @@ def plot_augmented_sample(filename):
 
 
 def plot_comparison(filename, model, batch_size, suffix=''):
+    create_directories()
+
     prediction_data_path = os.path.join(
         './midi_data_valid_quantized_inputs', filename + '.mid.npy')
     true_velocities_path = os.path.join(
@@ -179,6 +187,6 @@ def plot_comparison(filename, model, batch_size, suffix=''):
 
     # Write to file.
     name_with_suffix = '{}{}'.format(filename.split('.')[0], suffix)
-    output_path = os.path.join('output', name_with_suffix + ".png")
+    output_path = os.path.join(output_dir, name_with_suffix + ".png")
     plt.savefig(output_path, bbox_inches='tight')
     plt.close(fig)
