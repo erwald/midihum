@@ -29,7 +29,7 @@ def validate_data(path, quant, overwrite_existing=False):
     total_file_count = 0
     processed_count = 0
 
-    base_path_out = os.path.join(path_prefix, path_suffix+'_valid')
+    base_path_out = os.path.join(path_prefix, path_suffix + '_valid')
 
     skipped_file_names = []
 
@@ -104,12 +104,12 @@ def quantize_data(path, quant, overwrite_existing=False):
     total_file_count = 0
     processed_count = 0
 
-    base_path_out = os.path.join(path_prefix, path_suffix+'_quantized')
+    base_path_out = os.path.join(path_prefix, path_suffix + '_quantized')
     for root, _, files in os.walk(path):
         for file in files:
             # Calculate output file path.
             suffix = root.split(path)[-1]
-            out_dir = base_path_out + '/' + suffix
+            out_dir = os.path.join(base_path_out, suffix)
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir)
             output_file_path = os.path.join(out_dir, file)
@@ -230,8 +230,8 @@ def load_data(path):
     if len(path_suffix) == 0:
         path_prefix, path_suffix = os.path.split(path_prefix)
 
-    x_path = os.path.join(path_prefix, path_suffix+"_inputs")
-    y_path = os.path.join(path_prefix, path_suffix+"_labels")
+    x_path = os.path.join(path_prefix, path_suffix + "_inputs")
+    y_path = os.path.join(path_prefix, path_suffix + "_labels")
 
     for filename in os.listdir(x_path):
         if filename.split('.')[-1] == 'npy':

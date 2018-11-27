@@ -10,6 +10,7 @@ import midi_utility
 from model import *
 import utility
 import plotter
+from directories import *
 from data_loader import load_data, any_midi_filename
 from plot_comparison_callback import PlotComparison
 
@@ -35,22 +36,12 @@ parser.add_argument('-l', '--load-model', action='store_true',
 parser.add_argument('-t', '--train-model', action='store_true',
                     help='trains the model for the set number of epochs')
 
-# Folders
-midi_data_path = './midi_data'
-midi_data_valid_path = './midi_data_valid'
-midi_data_valid_quantized_path = './midi_data_valid_quantized'
-
-predictables_path = './input'
-predictables_valid_path = './input_valid'
-
-data_path = './data'
-training_set_path = os.path.join(data_path, 'training')
-velocities_path = os.path.join(data_path, 'velocities')
-validation_set_path = os.path.join(data_path, 'validation')
-
 quantization = 4
 
 args = parser.parse_args()
+
+# Create needed directories if they don't already exist.
+create_directories()
 
 if args.prepare_midi:
     print('Preparing train and test MIDI data ...')
@@ -67,8 +58,8 @@ if args.prepare_midi:
 if args.prepare_predictions:
     print('Preparing prediction MIDI data ...')
 
-    file_utility.validate_data(predictables_path, quantization)
-    file_utility.save_data(predictables_valid_path, quantization)
+    file_utility.validate_data(predictables_dir, quantization)
+    file_utility.save_data(predictables_valid_dir, quantization)
 
 # Load the prepared .npy data (validating only if we actually generated any data
 # in this session).
@@ -81,8 +72,7 @@ print('Train sequences: {}'.format(len(x_train)))
 print('Test sequences: {}'.format(len(x_test)))
 
 model_name = 'model'
-model_path = os.path.join('models', model_name + '.h5')
-history_path = 'models/history'
+model_path = os.path.join(model_dir, model_name + '.h5')
 
 if args.load_model:
     print('Loading model ...')
@@ -112,7 +102,7 @@ if args.train_model:
     # model, iow if we have trained the model before) or use it as a new
     # history, saving the result.
     if args.load_model:
-        new_history = np.load('{}.npy'.format(history_path)).item()
+        new_history = np.load('{}.npy'.format(history_dir)).item()
         metrics = ['val_loss', 'val_mean_squared_error',
                    'loss', 'mean_squared_error']
         for metric in metrics:
@@ -120,7 +110,7 @@ if args.train_model:
                 [new_history[metric], history.history[metric]])
     else:
         new_history = history.history
-    np.save(history_path, new_history)
+    np.save(history_dir, new_history)
 
     # Plot history.
     plotter.plot_model_history(new_history, model_name)
@@ -134,8 +124,8 @@ if args.load_model or args.train_model:
 
 if args.predict:
     prediction_data_path = os.path.join(
-        './input_valid_inputs', args.predict + '.npy')
-    prediction_midi_path = os.path.join('./input', args.predict)
+        predictables_valid_dir, args.predict + '.npy')
+    prediction_midi_path = os.path.join(predictables_dir, args.predict)
 
     prediction = predict(model, path=prediction_data_path,
                          batch_size=args.batch_size)
@@ -150,12 +140,12 @@ if args.predict:
     stylified_midi_file = midi_utility.stylify(
         midi_file, prediction, quantization)
 
-    stylified_midi_file.save(os.path.join('./output', args.predict))
+    stylified_midi_file.save(os.path.join(output_dir, args.predict))
 
 if args.include_baseline and args.predict:
     input_data_path = os.path.join(
-        './input_valid_inputs', args.predict + '.npy')
-    input_midi_path = os.path.join('./input', args.predict)
+        predictables_valid_dir, args.predict + '.npy')
+    input_midi_path = os.path.join(predictables_dir, args.predict)
 
     print('Creating baseline (all velocities set to 64) MIDI file ...')
 
@@ -168,7 +158,7 @@ if args.include_baseline and args.predict:
     baseline_midi_file = midi_utility.stylify(
         midi_file, velocities, quantization)
 
-    baseline_midi_file.save(os.path.join('./output_baseline', args.predict))
+    baseline_midi_file.save(os.path.join(baseline_output_dir, args.predict))
 
 if args.plot:
     plotter.plot_comparison(args.plot, model=model, batch_size=args.batch_size)

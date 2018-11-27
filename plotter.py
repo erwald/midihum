@@ -4,20 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as grd
 
+from directories import *
 from model import *
-
-output_dir = 'output'
-model_output_dir = 'output_model'
-
-
-def create_directories():
-    dirs = [output_dir, model_output_dir]
-    [os.makedirs(d) for d in dirs if not os.path.exists(d)]
 
 
 def plot_model_history(history, model_name):
-    create_directories()
-
     fig = plt.figure(figsize=(14, 11), dpi=180)
     fig.suptitle('Model Performance History', fontsize=10, fontweight='bold')
 
@@ -55,8 +46,6 @@ def prepare_input_for_plot(input_data):
 
 
 def plot_prediction(filename, model, batch_size):
-    create_directories()
-
     prediction_data_path = os.path.join(
         './input_valid_inputs', filename + '.mid.npy')
 
@@ -93,8 +82,6 @@ def plot_prediction(filename, model, batch_size):
 
 
 def plot_augmented_sample(filename):
-    create_directories()
-
     original_x_path = os.path.join(
         './midi_data_valid_quantized_inputs', '{}.mid.npy'.format(filename))
     x_paths = [original_x_path] + glob.glob(os.path.join(
@@ -141,8 +128,6 @@ def plot_augmented_sample(filename):
 
 
 def plot_comparison(filename, model, batch_size, suffix=''):
-    create_directories()
-
     prediction_data_path = os.path.join(
         './midi_data_valid_quantized_inputs', filename + '.mid.npy')
     true_velocities_path = os.path.join(
