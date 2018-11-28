@@ -70,7 +70,7 @@ def evaluate(model, x_test, y_test, batch_size):
         x_test, dtype='float32', padding='post')
     padded_y_test = sequence.pad_sequences(
         y_test, dtype='float32', padding='post')
-    number_of_test_batches = np.ceil(len(padded_x_test)/float(batch_size))
+    number_of_test_batches = np.ceil(len(padded_x_test) / float(batch_size))
 
     return model.evaluate_generator(batch_generator(padded_x_test,
                                                     padded_y_test,
