@@ -31,12 +31,10 @@ def create_model(batch_size):
     hidden_dropout = 0.5
 
     model = Sequential()
-    model.add(Bidirectional(LSTM(output_size // 4, activation='relu', return_sequences=True, dropout=input_dropout),
+    model.add(Bidirectional(LSTM(output_size, activation='relu', return_sequences=True, dropout=input_dropout),
                             merge_mode='sum',
                             input_shape=(None, input_size),
                             batch_input_shape=(batch_size, None, input_size)))
-    model.add(Bidirectional(LSTM(output_size // 4, activation='relu', return_sequences=True,
-                                 dropout=hidden_dropout), merge_mode='sum'))
     model.add(Bidirectional(LSTM(output_size, activation='relu', return_sequences=True,
                                  dropout=hidden_dropout), merge_mode='sum'))
     model.compile(loss='mse', optimizer=Adam(
