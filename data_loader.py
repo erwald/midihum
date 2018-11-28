@@ -41,8 +41,8 @@ def midi_names(name_filter='', exclusion_filter=None):
     return names
 
 
-def any_midi_filename():
-    return os.path.splitext(sorted(midi_names())[0])[0]
+def any_midi_filename(names=midi_names()):
+    return os.path.splitext(sorted(names)[0])[0]
 
 
 def validate_sample(x, y, name):
@@ -115,4 +115,4 @@ def load_data(test_size, random_state, validate=False):
     print('Loaded {} train samples and {} test samples'.format(
         len(x_train), len(x_test)))
 
-    return x_train, x_test, y_train, y_test
+    return train_names, test_names, x_train, x_test, y_train, y_test

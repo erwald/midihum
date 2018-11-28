@@ -65,7 +65,7 @@ if args.prepare_predictions:
 # in this session).
 #
 # Set aside 10% of the data set for validation.
-x_train, x_test, y_train, y_test = load_data(
+train_names, test_names, x_train, x_test, y_train, y_test = load_data(
     test_size=0.1, random_state=1988, validate=args.prepare_midi)
 
 print('Train sequences: {}'.format(len(x_train)))
@@ -84,8 +84,10 @@ if args.train_model:
     # Get some MIDI file the prediction for which to plot after each epoch.
     # (It'd be nicer to get one specifically from the validation set, but that's
     # for future me to do.)
-    plot_comparison_callback = PlotComparison(
-        model, any_midi_filename(), args.batch_size)
+    plot_train_comparison_callback = PlotComparison(
+        model, any_midi_filename(train_names), args.batch_size, suffix='_train')
+    plot_test_comparison_callback = PlotComparison(
+        model, any_midi_filename(test_names), args.batch_size, suffix='_test')
 
     model, history = train_model(model,
                                  x_train=x_train,
@@ -96,7 +98,7 @@ if args.train_model:
                                  epochs=args.epochs,
                                  model_path=model_path,
                                  save_model=True,
-                                 callbacks=[plot_comparison_callback])
+                                 callbacks=[plot_train_comparison_callback, plot_test_comparison_callback])
 
     # Take metrics and add them to the existing history (iff we loaded the
     # model, iow if we have trained the model before) or use it as a new
