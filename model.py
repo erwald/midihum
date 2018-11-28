@@ -14,6 +14,9 @@ def batch_generator(xs, ys, batch_size):
         x, y = xs[index1:index2], ys[index1:index2]
         x = sequence.pad_sequences(x, dtype='float32', padding='post')
         y = sequence.pad_sequences(y, dtype='float32', padding='post')
+
+        i = i + 1
+
         yield (x, y)
 
 
