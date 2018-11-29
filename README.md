@@ -1,6 +1,6 @@
 # Rachel
 
-Rachel is a recurrent neural network for humanizing MIDI -- that is, for taking as input MIDI compositions with constant velocities (flat loudness/dynamics) and producing as output velocity (or loudness/dynamics) predictions for each of the notes in those compositions.
+Rachel is a recurrent neural network for humanizing MIDI -- that is, for taking as input MIDI compositions with constant velocities (flat loudness/dynamics) and producing as output those same compositions with predicted velocity (loudness/dynamics) values for each of the contained notes.
 
 The theory behind and considerable parts of the code in this project are based on or taken from Iman Malik's thesis project [StyleNet](https://github.com/imalikshake/StyleNet/), about which you may learn more [here](http://imanmalik.com/cs/2017/06/05/neural-style.html).
 
@@ -30,10 +30,10 @@ $ python3 main.py -l --prepare-predictions --predict=My_Song.mid
 
 ## How does the model look?
 
-The model is made up of four layers of bidirectional long short-term memory networks (LSTMs), the first with a dropout of 20% and the subsequent layers with one of 50%. All of the layers use ReLU as their activation function.
+The model is made up of four layers of bidirectional LSTMs, the first with a dropout of 20% and the subsequent layers with one of 50%. All of the layers use ReLU as their activation function.
 
-It uses Adam (with a learning rate of `0.001` and a gradient clipping of `g = 10`) as its optimiser. The loss function is mean squared error. That's pretty much it -- for more details, have a look at `model.py`.
+It uses Adam (with a learning rate of `0.001` and a gradient clipping of `g = 1`) as its optimiser. The loss function is the usual mean squared error. That's pretty much it -- for more details, have a look at `model.py`.
 
 ## Whence the name?
 
-I named the project after Rachel Heard, whose recording of Haydn's _Andante con variazioni in F minor_ for Naxos remains unsurpassed among the many recordings of that piece I've heard so far, and after Rachel Podger, whose recordings for Channel Classics are a constant joy for me. But I would hardly be surprised to learn that there are many more musical Rachels on our earth whom this project would be glad to claim as eponyms.
+I named the project after Rachel Heard, whose recording of Haydn's _Andante con variazioni in F minor_ for Naxos remains unsurpassed among the many recordings of that piece I've heard so far, and after the violinist Rachel Podger. But I would hardly be surprised to learn that there are many more musical Rachels on our earth whom this project would be glad to claim as eponyms.
