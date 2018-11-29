@@ -11,7 +11,7 @@ from model import *
 import utility
 import plotter
 from directories import *
-from data_loader import load_data, any_midi_filename
+from data_loader import get_train_validate_names, any_midi_filename
 from plot_comparison_callback import PlotComparison
 
 np.set_printoptions(threshold=np.inf)
@@ -65,11 +65,11 @@ if args.prepare_predictions:
 # in this session).
 #
 # Set aside 10% of the data set for validation.
-train_names, test_names, x_train, x_test, y_train, y_test = load_data(
-    test_size=0.1, random_state=1988, validate=args.prepare_midi)
+train_names, validate_names = get_train_validate_names(
+    test_size=0.1, random_state=1988)
 
-print('Train sequences: {}'.format(len(x_train)))
-print('Test sequences: {}'.format(len(x_test)))
+print('Train sequences: {} (excluding augmentations)'.format(len(train_names)))
+print('Validation sequences: {}'.format(len(validate_names)))
 
 model_name = 'model'
 model_path = os.path.join(model_dir, model_name + '.h5')
@@ -87,16 +87,15 @@ if args.train_model:
     plot_train_comparison_callback = PlotComparison(
         model, any_midi_filename(train_names), args.batch_size, suffix='_train')
     plot_test_comparison_callback = PlotComparison(
-        model, any_midi_filename(test_names), args.batch_size, suffix='_test')
+        model, any_midi_filename(validate_names), args.batch_size, suffix='_test')
 
     model, history = train_model(model,
-                                 x_train=x_train,
-                                 y_train=y_train,
-                                 x_test=x_test,
-                                 y_test=y_test,
+                                 train_names=train_names,
+                                 validate_names=validate_names,
                                  batch_size=args.batch_size,
                                  epochs=args.epochs,
                                  model_path=model_path,
+                                 ratify_data=args.prepare_midi,
                                  save_model=True,
                                  callbacks=[plot_train_comparison_callback, plot_test_comparison_callback])
 
@@ -120,7 +119,7 @@ if args.train_model:
 # Evaluate iff we have a model that has at some point been trained.
 if args.load_model or args.train_model:
     loss_and_metrics = evaluate(
-        model, x_test, y_test, batch_size=args.batch_size)
+        model, validate_names, batch_size=args.batch_size)
     print('Final loss and metrics:', loss_and_metrics)
 
 

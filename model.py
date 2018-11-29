@@ -1,23 +1,8 @@
 import numpy as np
-from keras.preprocessing import sequence
 from keras.models import Sequential
 from keras.layers import LSTM, Bidirectional
 from keras.optimizers import Adam
-
-
-def batch_generator(xs, ys, batch_size):
-    '''Generates a batch of samples for training or validation.'''
-    i = 0
-    while True:
-        index1 = (i * batch_size) % len(xs)
-        index2 = min(index1 + batch_size, len(xs))
-        x, y = xs[index1:index2], ys[index1:index2]
-        x = sequence.pad_sequences(x, dtype='float32', padding='post')
-        y = sequence.pad_sequences(y, dtype='float32', padding='post')
-
-        i = i + 1
-
-        yield (x, y)
+from data_generator import DataGenerator
 
 
 def create_model(batch_size):
@@ -48,17 +33,24 @@ def create_model(batch_size):
     return model
 
 
-def train_model(model, x_train, y_train, x_test, y_test, batch_size, epochs, model_path, save_model=False, callbacks=[]):
+def train_model(model, train_names, validate_names, batch_size, epochs,
+                model_path, ratify_data, save_model=False, callbacks=[]):
     print('Training model ...')
 
-    number_of_train_batches = np.ceil(len(x_train)/float(batch_size))
-    number_of_validate_batches = np.ceil(len(x_test)/float(batch_size))
-    history = model.fit_generator(batch_generator(x_train, y_train, batch_size),
+    train_generator = DataGenerator(
+        train_names, batch_size, get_random_augmentation=True, ratify_data=ratify_data)
+    validate_generator = DataGenerator(
+        validate_names, batch_size, get_random_augmentation=False, ratify_data=ratify_data)
+
+    number_of_train_batches = np.ceil(len(train_names) / float(batch_size))
+    number_of_validate_batches = np.ceil(
+        len(validate_names) / float(batch_size))
+
+    history = model.fit_generator(train_data=train_generator,
                                   steps_per_epoch=number_of_train_batches,
                                   epochs=epochs,
                                   callbacks=callbacks,
-                                  validation_data=batch_generator(
-                                      x_test, y_test, batch_size),
+                                  validation_data=validate_generator,
                                   validation_steps=number_of_validate_batches)
 
     if save_model:
@@ -68,17 +60,11 @@ def train_model(model, x_train, y_train, x_test, y_test, batch_size, epochs, mod
     return (model, history)
 
 
-def evaluate(model, x_test, y_test, batch_size):
-    padded_x_test = sequence.pad_sequences(
-        x_test, dtype='float32', padding='post')
-    padded_y_test = sequence.pad_sequences(
-        y_test, dtype='float32', padding='post')
-    number_of_test_batches = np.ceil(len(padded_x_test) / float(batch_size))
-
-    return model.evaluate_generator(batch_generator(padded_x_test,
-                                                    padded_y_test,
-                                                    batch_size),
-                                    steps=number_of_test_batches)
+def evaluate(model, test_names, batch_size):
+    test_generator = DataGenerator(
+        test_names, batch_size, get_random_augmentation=False)
+    number_of_test_batches = np.ceil(len(test_names) / float(batch_size))
+    return model.evaluate_generator(test_generator, steps=number_of_test_batches)
 
 
 def predict(model, path, batch_size):

@@ -1,6 +1,7 @@
 import os
 import glob
 import numpy as np
+import random
 from sklearn.model_selection import train_test_split
 
 # Folders
@@ -45,8 +46,8 @@ def any_midi_filename(names=midi_names()):
     return os.path.splitext(sorted(names)[0])[0]
 
 
-def validate_sample(x, y, name):
-    print('Validating {} ...'.format(name))
+def ratify_sample(x, y, name):
+    print('Ratifying {} ...'.format(name))
     assert np.any(x), 'found all-zero input in: {}'.format(name)
     assert np.all(np.isfinite(x)), 'found nan or inf input in: {}'.format(name)
     assert np.any(y), 'found all-zero output in: {}'.format(name)
@@ -58,11 +59,17 @@ def validate_sample(x, y, name):
         y > 0, 1, 0))), 'Found a zero velocity for note in {}'.format(name)
 
 
-def load_data(test_size, random_state, validate=False):
-    '''Loads the musical performances and returns sets of inputs and labels
-    (notes and resulting velocities), one for testing and one for training.'''
+def get_train_validate_names(test_size, random_state):
+    # Get file names of all MIDI files (excluding augmented versions).
+    midi_data_names = midi_names(exclusion_filter='_aug_')
 
-    print('Loading data ...')
+    # Split names into training and validation sets.
+    return train_test_split(midi_data_names, test_size=test_size, random_state=random_state)
+
+
+def load_data(names, get_random_augmentation, ratify_data=False):
+    '''Loads the musical performances with the given filenames, and returns sets
+    of inputs and labels (notes and resulting velocities).'''
 
     # N songs of Mn timesteps, each with:
     #   - 176 (= 88 * 2) pitch classes
@@ -73,46 +80,24 @@ def load_data(test_size, random_state, validate=False):
     #   - 9 values for chord quality (minor, major, suspended, etc.)
     #
     # Iow, each data point: [Mn, 190]
-    x_train = []
-    x_test = []
+    x = []
 
     # N songs of Mn timesteps, each with 88 velocities.
     # Iow, each data point: [Mn, 88]
-    y_train = []
-    y_test = []
+    y = []
 
-    # Get file names of all MIDI files (excluding augmented versions).
-    midi_data_names = midi_names(exclusion_filter='_aug_')
+    for name in names:
+        if get_random_augmentation:
+            name = random.choice(midi_names(name_filter=name))
 
-    # Split names into training and test sets.
-    train_names, test_names = train_test_split(
-        midi_data_names, test_size=test_size, random_state=random_state)
-
-    for name in train_names:
-        names_with_augmentations = midi_names(name_filter=name)
-        for augmentation_name in names_with_augmentations:
-            loaded_inputs, loaded_velocities = load_file(augmentation_name)
-            x_train.append(loaded_inputs)
-            y_train.append(loaded_velocities)
-
-            if validate:
-                validate_sample(
-                    loaded_inputs, loaded_velocities, augmentation_name)
-
-    for name in test_names:
         loaded_inputs, loaded_velocities = load_file(name)
-        x_test.append(loaded_inputs)
-        y_test.append(loaded_velocities)
+        x.append(loaded_inputs)
+        y.append(loaded_velocities)
 
-        if validate:
-            validate_sample(loaded_inputs, loaded_velocities, name)
+        if ratify_data:
+            ratify_sample(loaded_inputs, loaded_velocities, name)
 
-    x_train = np.array(x_train)
-    y_train = np.array(y_train)
-    x_test = np.array(x_test)
-    y_test = np.array(y_test)
+    x = np.array(x)
+    y = np.array(y)
 
-    print('Loaded {} train samples and {} test samples'.format(
-        len(x_train), len(x_test)))
-
-    return train_names, test_names, x_train, x_test, y_train, y_test
+    return x, y
