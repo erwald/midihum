@@ -47,7 +47,7 @@ def train_model(model, train_names, validate_names, batch_size, epochs,
     number_of_validate_batches = np.ceil(
         len(validate_names) / float(batch_size))
 
-    history = model.fit_generator(train_data=train_generator,
+    history = model.fit_generator(train_generator,
                                   steps_per_epoch=number_of_train_batches,
                                   epochs=epochs,
                                   callbacks=callbacks,
