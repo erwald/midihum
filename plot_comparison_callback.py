@@ -1,5 +1,7 @@
-from keras.callbacks import Callback
 import datetime
+
+from keras.callbacks import Callback
+
 import plotter
 
 

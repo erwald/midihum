@@ -1,8 +1,9 @@
-import numpy as np
 from math import ceil
-from utility import replace_nan_with_average
-from chord_identifier import chord_attributes
 
+import numpy as np
+
+from chord_identifier import chord_attributes
+from utility import replace_nan_with_average
 
 chord_character_one_hot_dict = {'minor': [1, 0, 0, 0, 0],
                                 'major': [0, 1, 0, 0, 0],

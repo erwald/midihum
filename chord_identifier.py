@@ -1,4 +1,5 @@
 from collections import OrderedDict
+
 import numpy as np
 
 # Dictionary of chords qualities and chords (in integer notation).

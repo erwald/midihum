@@ -1,15 +1,17 @@
 # Much of this code is taken from https://github.com/imalikshake/StyleNet/
 
-from collections import defaultdict
 import copy
-from math import log, floor, ceil
 import pprint
-import matplotlib.pyplot as plt
-import pretty_midi
-import mido
-from mido import MidiFile, MidiTrack, Message, MetaMessage
-import numpy as np
 import random
+from collections import defaultdict
+from math import ceil, floor, log
+
+import matplotlib.pyplot as plt
+import mido
+import numpy as np
+import pretty_midi
+from mido import Message, MetaMessage, MidiFile, MidiTrack
+
 from data_augmentation import augmented_data
 from feature_engineering import midi_array_with_engineered_features
 

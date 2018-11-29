@@ -1,6 +1,7 @@
-import numpy as np
 import keras
+import numpy as np
 from keras.preprocessing import sequence
+
 from data_loader import load_data
 
 

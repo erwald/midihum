@@ -1,7 +1,8 @@
 import numpy as np
-from keras.models import Sequential
 from keras.layers import LSTM, Bidirectional
+from keras.models import Sequential
 from keras.optimizers import Adam
+
 from data_generator import DataGenerator
 
 
