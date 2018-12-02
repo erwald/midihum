@@ -103,7 +103,8 @@ if args.train_model:
     # model, iow if we have trained the model before) or use it as a new
     # history, saving the result.
     if args.load_model:
-        new_history = np.load('{}.npy'.format(history_dir)).item()
+        history_path = '{}.npy'.format(os.path.join(model_dir, 'history'))
+        new_history = np.load(history_path).item()
         metrics = ['val_loss', 'val_mean_squared_error',
                    'loss', 'mean_squared_error']
         for metric in metrics:
