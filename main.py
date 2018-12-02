@@ -112,7 +112,7 @@ if args.train_model:
                 [new_history[metric], history.history[metric]])
     else:
         new_history = history.history
-    np.save(history_dir, new_history)
+    np.save(history_path, new_history)
 
     # Plot history.
     plotter.plot_model_history(new_history, model_name)
