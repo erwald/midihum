@@ -49,10 +49,14 @@ def train_model(model, train_names, validate_names, batch_size, epochs,
     number_of_validate_batches = np.ceil(
         len(validate_names) / float(batch_size))
 
+    # Reduce learning rate when model stops improving.
+    reduce_lr = ReduceLROnPlateau(
+        monitor='val_loss', factor=0.2, patience=5, min_lr=1e-4)
+
     history = model.fit_generator(train_generator,
                                   steps_per_epoch=number_of_train_batches,
                                   epochs=epochs,
-                                  callbacks=callbacks,
+                                  callbacks=(callbacks + [reduce_lr]),
                                   validation_data=validate_generator,
                                   validation_steps=number_of_validate_batches)
 
