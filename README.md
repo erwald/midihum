@@ -30,7 +30,7 @@ $ python3 main.py -l --prepare-predictions --predict=My_Song.mid
 
 ## How does the model look?
 
-The model is made up of four layers of bidirectional LSTMs, the first with a dropout of 20% and the subsequent layers with one of 50%. All of the layers use ReLU as their activation function.
+The model is made up of three layers of bidirectional LSTMs, the first with a dropout of 20% and the subsequent layers with one of 50%. All of the layers use ReLU as their activation function.
 
 It uses Adam (with a learning rate of `0.001` and a gradient clipping of `g = 1`) as its optimiser. The loss function is the usual mean squared error. That's pretty much it -- for more details, have a look at `model.py`.
 
