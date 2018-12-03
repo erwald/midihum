@@ -52,7 +52,7 @@ def train_model(model, train_names, validate_names, batch_size, epochs,
 
     # Reduce learning rate when model stops improving.
     reduce_lr = ReduceLROnPlateau(
-        monitor='val_loss', factor=0.1, patience=5, min_lr=1e-5)
+        monitor='val_loss', factor=0.1, patience=3, min_lr=1e-5)
 
     history = model.fit_generator(train_generator,
                                   steps_per_epoch=number_of_train_batches,
