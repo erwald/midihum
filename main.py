@@ -76,7 +76,8 @@ model_path = os.path.join(model_dir, model_name + '.h5')
 
 if args.load_model:
     print('Loading model ...')
-    model = load_model(model_path)
+    model = load_model(model_path, custom_objects={
+                       'velocity_mse': velocity_mse})
 else:
     model = create_model(batch_size=args.batch_size)
 
@@ -105,8 +106,8 @@ if args.train_model:
     history_path = '{}.npy'.format(os.path.join(model_dir, 'history'))
     if args.load_model:
         new_history = np.load(history_path).item()
-        metrics = ['val_loss', 'val_mean_squared_error',
-                   'loss', 'mean_squared_error']
+        metrics = ['val_loss', 'val_mean_squared_error', 'val_velocity_mse',
+                   'loss', 'mean_squared_error', 'velocity_mse']
         for metric in metrics:
             new_history[metric] = np.concatenate(
                 [new_history[metric], history.history[metric]])

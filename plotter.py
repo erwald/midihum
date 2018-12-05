@@ -14,7 +14,10 @@ def plot_model_history(history, model_name):
 
     plt.plot(history['mean_squared_error'], label='Training MSE')
     plt.plot(history['val_mean_squared_error'], label='Validation MSE')
-    plt.ylabel('Loss (Mean Squared Error)')
+    plt.plot(history['velocity_mse'], label='Training MSE (of velocities)')
+    plt.plot(history['val_velocity_mse'],
+             label='Validation MSE (of velocities)')
+    plt.ylabel('Loss')
     plt.xlabel('Epoch')
     plt.legend()
 

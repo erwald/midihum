@@ -3,8 +3,28 @@ from keras.layers import LSTM, Bidirectional
 from keras.models import Sequential
 from keras.optimizers import Adam
 from keras.callbacks import ReduceLROnPlateau
+import keras.backend as K
 
 from data_generator import DataGenerator
+
+
+def velocity_mse(y_true, y_pred):
+    '''A loss function which calculates the MSE only for those values where we
+    actually expect some velocity to be predicted.
+
+    Iow, this is the same as the regular MSE, only we ignore every prediction 
+    for which we don't expect some velocity value anyway.
+    '''
+    # Create mask filtering out values for which we don't expect velocities.
+    # This is 1 when we expect a velocity, and near 0 otherwise (we don't want
+    # to ignore those ones completely).
+    mask = K.maximum(K.cast(K.greater(y_true, 0), dtype='float32'), 0.1)
+
+    # Multiply prediction and mask matrices element-wise.
+    y_pred_masked = K.prod([y_pred, mask], axis=0)
+
+    # Calculate MSE in the usual manner.
+    return K.mean(K.square(y_pred_masked - y_true), axis=-1)
 
 
 def create_model(batch_size):
@@ -30,7 +50,7 @@ def create_model(batch_size):
     model.add(Bidirectional(LSTM(output_size, activation='relu', return_sequences=True,
                                  dropout=hidden_dropout), merge_mode='sum'))
     model.compile(loss='mse', optimizer=Adam(
-        lr=1e-3, clipnorm=1), metrics=['mse'])
+        lr=1e-3, clipnorm=1), metrics=[velocity_mse, 'mse'])
 
     print(model.summary())
 
