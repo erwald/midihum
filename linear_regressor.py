@@ -16,18 +16,14 @@ from midi_dataframe_converter import midi_files_to_data_frame
 from directories import *
 
 
-quantization = 4
-
 # Load data.
 midi_data_filepaths = get_files(
     midi_data_valid_quantized_path, ['.mid', '.MID'])
 train_filepaths, validate_filepaths = train_test_split(
     midi_data_filepaths, test_size=0.1, random_state=1988)
 
-train_df = midi_files_to_data_frame(midi_filepaths=train_filepaths,
-                                    quantization=quantization)
-validate_df = midi_files_to_data_frame(midi_filepaths=validate_filepaths,
-                                       quantization=quantization)
+train_df = midi_files_to_data_frame(midi_filepaths=train_filepaths)
+validate_df = midi_files_to_data_frame(midi_filepaths=validate_filepaths)
 midi_df = pd.concat([train_df, validate_df])
 
 data_folder = './data'
@@ -43,9 +39,11 @@ print('Train correlations:\n', train_df.corr())
 valid_idx = range(len(midi_df) - len(validate_df), len(midi_df))
 
 category_names = ['pitch_class']
-continuous_names = ['pitch', 'octave', 'velocity_2']
+continuous_names = ['pitch', 'octave', 'nearness_to_end',
+                    'nearness_to_midpoint', 'song_duration', 'number_of_notes',
+                    'num_of_notes_adj_by_dur', 'interval', 'sustain',
+                    'mean_sustain', 'sustain_adj_by_mean']
 dep_var = 'velocity'
-y_range = range(-1, 1)
 
 procs = [Categorify, Normalize]
 data = (TabularList.from_df(midi_df, path=data_folder, cat_names=category_names, cont_names=continuous_names, procs=procs)
@@ -54,8 +52,8 @@ data = (TabularList.from_df(midi_df, path=data_folder, cat_names=category_names,
         .databunch())
 
 emb_szs = {'pitch_class': 12}
-learn = tabular_learner(data, layers=[200, 100], emb_szs=emb_szs, ps=[
-    0.001, 0.01], emb_drop=0.04, y_range=y_range, metrics=exp_rmspe)
+learn = tabular_learner(
+    data, layers=[200, 100], emb_szs=emb_szs, y_range=None, metrics=exp_rmspe)
 
 # learn.lr_find()
 # learn.recorder.plot()
