@@ -65,7 +65,21 @@ predictions, targets = learn.get_preds(DatasetType.Valid)
 print('Predictions: ', predictions)
 print('Expected: ', targets)
 
+print('Generating plots ...')
+
 sns.set()
-plot = sns.heatmap(train_df.corr())
+
+plot = sns.heatmap(train_df.corr(), vmin=-1, vmax=1, cmap="PiYG")
+plt.tight_layout()
 plot.get_figure().savefig(os.path.join(
     model_output_dir, 'regression_correlations.png'))
+plt.clf()
+
+plot = sns.heatmap(np.abs(train_df.corr()), vmin=0, vmax=1, cmap="Blues")
+plt.tight_layout()
+plot.get_figure().savefig(os.path.join(
+    model_output_dir, 'regression_correlations_absolute.png'))
+plt.clf()
+
+plot = sns.pairplot(train_df)
+plot.savefig(os.path.join(model_output_dir, 'pairwise_relationships.png'))
