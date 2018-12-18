@@ -68,9 +68,11 @@ learn = tabular_learner(
 learn.fit_one_cycle(5, 1e-4)
 # learn.show_results()
 
-predictions, targets = learn.get_preds(DatasetType.Valid)
-print('Predictions: ', predictions)
-print('Expected: ', targets)
+predictions, targets = [x.numpy().flatten()
+                        for x in learn.get_preds(DatasetType.Valid)]
+print('Prediction range:', (np.amin(predictions), np.amax(predictions)))
+print('Predictions:', predictions)
+print('Expected:', targets)
 
 print('Generating plots ...')
 
