@@ -9,7 +9,7 @@ from fastai.basic_train import *
 from fastai.tabular import *
 from fastai.metrics import *
 from fastai.data_block import *
-from sklearn import metrics
+from sklearn import metrics, preprocessing
 from sklearn.model_selection import train_test_split
 
 from midi_dataframe_converter import midi_files_to_data_frame
@@ -38,6 +38,10 @@ print('Train correlations:\n', train_df.corr())
 # Split data into train and validate sets.
 valid_idx = range(len(midi_df) - len(validate_df), len(midi_df))
 
+# Normalise output.
+midi_df['velocity'] = preprocessing.minmax_scale(
+    midi_df.velocity.values, feature_range=(-1, 1))
+
 category_names = ['pitch_class']
 continuous_names = ['pitch', 'octave', 'nearness_to_end',
                     'nearness_to_midpoint', 'song_duration', 'number_of_notes',
@@ -51,7 +55,10 @@ data = (TabularList.from_df(midi_df, path=data_folder, cat_names=category_names,
         .label_from_df(cols=dep_var, label_cls=FloatList)
         .databunch())
 
-emb_szs = {'pitch_class': 12}
+# For each category, use an embedding size of half of the # of possible values.
+category_szs = {'pitch_class': 12}
+emb_szs = {k: v // 2 for k, v in category_szs.items()}
+
 learn = tabular_learner(
     data, layers=[200, 100], emb_szs=emb_szs, y_range=None, metrics=exp_rmspe)
 

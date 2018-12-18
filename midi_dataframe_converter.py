@@ -98,12 +98,12 @@ def midi_file_to_data_frame(midi_file):
             else:
                 interval_since_last_played_pitch = 0
 
-            note_on_data = [(velocity / 127.0 - 0.5) * 2,
+            note_on_data = [velocity,
                             pitch,
                             pitch % 12,
                             pitch // 12,
                             time / song_duration,
-                            -(((time / song_duration) * 2 - 1) ** 2 + 1),
+                            -(((time / song_duration) * 2 - 1) ** 2) + 1,
                             interval_since_last_played_pitch]
 
             currently_playing_notes[pitch] = (time, note_on_data)
