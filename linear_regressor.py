@@ -43,11 +43,19 @@ midi_df['velocity'] = preprocessing.minmax_scale(
     midi_df.velocity.values, feature_range=(-1, 1))
 
 category_names = ['pitch_class']
-continuous_names = ['pitch', 'octave', 'nearness_to_end',
-                    'nearness_to_midpoint', 'song_duration', 'number_of_notes',
-                    'num_of_notes_adj_by_dur', 'interval_from_released',
-                    'interval_from_pressed', 'sustain',
-                    'mean_sustain', 'sustain_adj_by_mean']
+continuous_names = ['pitch',
+                    'octave',
+                    'nearness_to_end',
+                    'nearness_to_midpoint',
+                    'number_of_notes',
+                    'num_of_notes_adj_by_dur',
+                    'interval_from_released',
+                    'interval_from_pressed',
+                    'sustain',
+                    'song_duration',
+                    'time_since_last_note',
+                    'mean_sustain',
+                    'sustain_adj_by_mean']
 dep_var = 'velocity'
 
 procs = [Categorify, Normalize]
