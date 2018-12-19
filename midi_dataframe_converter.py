@@ -116,12 +116,13 @@ def midi_file_to_data_frame(midi_file):
                             time / song_duration,
                             -(((time / song_duration) * 2 - 1) ** 2) + 1,
                             interval_from_last_released_pitch,
-                            interval_from_last_pressed_pitch]
+                            interval_from_last_pressed_pitch,
+                            int(len(currently_playing_notes) == 0)]
 
             currently_playing_notes.append((pitch, time, note_on_data))
         elif (msg_type == 'note_off' or (msg_type == 'note_on' and velocity == 0)):
-            if any(p == pitch for p, _, _ in currently_playing_notes):
-                print('Encountered note off event for pitch that has not been played')
+            assert (any(p == pitch for p, _, _ in currently_playing_notes)
+                    ), 'Warning: encountered note off event for pitch that has not been played'
 
             note_on = _, note_on_time, note_on_data = next(
                 x for x in currently_playing_notes if x[0] == pitch)
@@ -139,7 +140,8 @@ def midi_file_to_data_frame(midi_file):
     df = pd.DataFrame(result)
     df.columns = ['velocity', 'time', 'pitch', 'pitch_class', 'octave',
                   'nearness_to_end', 'nearness_to_midpoint',
-                  'interval_from_released', 'interval_from_pressed', 'sustain']
+                  'interval_from_released', 'interval_from_pressed',
+                  'follows_pause', 'sustain']
 
     df['song_duration'] = song_duration
 

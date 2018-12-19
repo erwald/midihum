@@ -42,7 +42,8 @@ valid_idx = range(len(midi_df) - len(validate_df), len(midi_df))
 midi_df['velocity'] = preprocessing.minmax_scale(
     midi_df.velocity.values, feature_range=(-1, 1))
 
-category_names = ['pitch_class']
+category_names = ['pitch_class',
+                  'follows_pause']
 continuous_names = ['pitch',
                     'octave',
                     'nearness_to_end',
@@ -65,7 +66,7 @@ data = (TabularList.from_df(midi_df, path=data_folder, cat_names=category_names,
         .databunch())
 
 # For each category, use an embedding size of half of the # of possible values.
-category_szs = {'pitch_class': 12}
+category_szs = {'pitch_class': 12, 'follows_pause': 2}
 emb_szs = {k: v // 2 for k, v in category_szs.items()}
 
 learn = tabular_learner(
