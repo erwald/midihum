@@ -55,6 +55,9 @@ continuous_names = ['pitch',
                     'sustain',
                     'song_duration',
                     'time_since_last_note',
+                    'pitch_rolling_avg',
+                    'octave_rolling_avg',
+                    'sustain_rolling_avg',
                     'mean_sustain',
                     'sustain_adj_by_mean']
 dep_var = 'velocity'

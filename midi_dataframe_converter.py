@@ -147,6 +147,14 @@ def midi_file_to_data_frame(midi_file):
 
     df['time_since_last_note'] = (df.time - df.time.shift(1)).fillna(0)
 
+    # Calculate some rolling averages.
+    df['pitch_rolling_avg'] = df.pitch.rolling(
+        5).mean().fillna(method='backfill')
+    df['octave_rolling_avg'] = df.octave.rolling(
+        3).mean().fillna(method='backfill')
+    df['sustain_rolling_avg'] = df.sustain.rolling(
+        25).mean().fillna(method='backfill')
+
     return df
 
 
