@@ -58,6 +58,7 @@ continuous_names = ['pitch',
                     'pitch_rolling_avg',
                     'octave_rolling_avg',
                     'sustain_rolling_avg',
+                    'sustain_rolling_sum',
                     'mean_sustain',
                     'sustain_adj_by_mean']
 dep_var = 'velocity'

@@ -154,6 +154,8 @@ def midi_file_to_data_frame(midi_file):
         3).mean().fillna(method='backfill')
     df['sustain_rolling_avg'] = df.sustain.rolling(
         25).mean().fillna(method='backfill')
+    df['sustain_rolling_sum'] = df.sustain.rolling(
+        20).sum().fillna(method='backfill')
 
     return df
 
