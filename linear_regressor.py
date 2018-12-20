@@ -92,13 +92,14 @@ print('Generating plots ...')
 
 sns.set()
 
-plot = sns.heatmap(train_df.corr(), vmin=-1, vmax=1, cmap="PiYG")
+plot = sns.heatmap(train_df.corr(), vmin=-1, vmax=1,
+                   cmap='PiYG', xticklabels=True, yticklabels=True)
 plt.tight_layout()
 plot.get_figure().savefig(os.path.join(
     model_output_dir, 'regression_correlations.png'))
 plt.clf()
 
-plot = sns.heatmap(np.abs(train_df.corr()), vmin=0, vmax=1, cmap="Blues")
+plot = sns.heatmap(np.abs(train_df.corr()), vmin=0, vmax=1, cmap='Blues')
 plt.tight_layout()
 plot.get_figure().savefig(os.path.join(
     model_output_dir, 'regression_correlations_absolute.png'))
