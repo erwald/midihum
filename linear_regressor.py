@@ -80,9 +80,10 @@ learn.fit_one_cycle(5, 1e-4)
 
 predictions, targets = [x.numpy().flatten()
                         for x in learn.get_preds(DatasetType.Valid)]
+prediction_df = pd.DataFrame(
+    {'name': validate_df.name, 'prediction': predictions, 'target': targets})
 print('Prediction range:', (np.amin(predictions), np.amax(predictions)))
-print('Predictions:', predictions)
-print('Expected:', targets)
+print('Predictions:', prediction_df.head())
 
 print('Generating plots ...')
 
@@ -102,3 +103,10 @@ plt.clf()
 
 plot = sns.pairplot(train_df)
 plot.savefig(os.path.join(model_output_dir, 'pairwise_relationships.png'))
+plt.clf()
+
+# Plot relationship between predictions and targets.
+plot = sns.relplot(x='target', y='prediction', col='name',
+                   col_wrap=5, data=prediction_df)
+plot.set(xlim=(-1, 1), ylim=(-1, 1))
+plot.savefig(os.path.join(model_output_dir, 'predictions.png'))
