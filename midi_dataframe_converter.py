@@ -117,6 +117,7 @@ def midi_file_to_data_frame(midi_file):
                             -(((time / song_duration) * 2 - 1) ** 2) + 1,
                             interval_from_last_released_pitch,
                             interval_from_last_pressed_pitch,
+                            len(currently_playing_notes) + 1,
                             int(len(currently_playing_notes) == 0)]
 
             currently_playing_notes.append((pitch, time, note_on_data))
@@ -131,7 +132,8 @@ def midi_file_to_data_frame(midi_file):
             sustain_duration = time - note_on_time
             assert sustain_duration > 0, 'Encountered note sustained for a duration of 0'
 
-            note_off_data = [sustain_duration]
+            note_off_data = [sustain_duration,
+                             len(currently_playing_notes)]
 
             # Add new row to result and sort all rows by note time (2nd column).
             result.append(note_on_data + note_off_data)
@@ -141,7 +143,8 @@ def midi_file_to_data_frame(midi_file):
     df.columns = ['velocity', 'time', 'pitch', 'pitch_class', 'octave',
                   'nearness_to_end', 'nearness_to_midpoint',
                   'interval_from_released', 'interval_from_pressed',
-                  'follows_pause', 'sustain']
+                  'num_played_notes_pressed', 'follows_pause', 'sustain',
+                  'num_played_notes_released']
 
     df['song_duration'] = song_duration
 
@@ -149,32 +152,16 @@ def midi_file_to_data_frame(midi_file):
     df['time_since_last_released'] = (
         df.time - (df.time.shift(1) + df.sustain.shift(1))).fillna(0)
 
-    # Calculate some rolling sums and averages.
-    df['pitch_rolling_avg'] = df.pitch.rolling(
-        5).mean().fillna(method='backfill')
-    df['octave_rolling_avg'] = df.octave.rolling(
-        3).mean().fillna(method='backfill')
-    df['sustain_rolling_avg'] = df.sustain.rolling(
-        25).mean().fillna(method='backfill')
-    df['sustain_rolling_sum'] = df.sustain.rolling(
-        20).sum().fillna(method='backfill')
+    # Calculate some rolling means.
+    for col in ['pitch', 'octave', 'sustain']:
+        add_rolling_column(df, col)
+        add_rolling_column(df, col, is_forward=True)
 
-    df['pitch_fwd_rolling_avg_3'] = df.pitch[::-1].rolling(
-        3).mean().fillna(method='backfill')[::-1]
-    df['pitch_fwd_rolling_avg_20'] = df.pitch[::-1].rolling(
-        20).mean().fillna(method='backfill')[::-1]
-    df['octave_fwd_rolling_avg_3'] = df.octave[::-1].rolling(
-        3).mean().fillna(method='backfill')[::-1]
-    df['octave_fwd_rolling_avg_20'] = df.octave[::-1].rolling(
-        20).mean().fillna(method='backfill')[::-1]
-    df['sustain_fwd_rolling_avg_3'] = df.sustain[::-1].rolling(
-        3).mean().fillna(method='backfill')[::-1]
-    df['sustain_fwd_rolling_avg_20'] = df.sustain[::-1].rolling(
-        20).mean().fillna(method='backfill')[::-1]
-    df['sustain_fwd_rolling_sum_3'] = df.sustain[::-1].rolling(
-        3).sum().fillna(method='backfill')[::-1]
-    df['sustain_fwd_rolling_sum_20'] = df.sustain[::-1].rolling(
-        20).sum().fillna(method='backfill')[::-1]
+    # Calculate some rolling sums.
+    for col in ['sustain', 'num_played_notes_pressed', 'num_played_notes_released']:
+        add_rolling_column(df, col, aggregator=pd.core.window.Rolling.sum)
+        add_rolling_column(
+            df, col, aggregator=pd.core.window.Rolling.sum, is_forward=True)
 
     # Calculate lag values (calculated by summing).
     for col in ['interval_from_released', 'interval_from_pressed',
@@ -214,3 +201,22 @@ def note_events_for_track(track, quantization):
              msg.velocity)
             for (time, msg) in zip(cum_times, time_messages)
             if msg.type == 'note_on' or msg.type == 'note_off']
+
+
+def add_rolling_column(df, col, aggregator=pd.core.window.Rolling.mean, is_forward=False):
+    '''Takes a data frame and the name of a column in that data frame, and then
+    adds 6 new columns with rolling means/sums (depending on given aggregator
+    function) for that column (3 going backward and 3 forward).
+    '''
+    windows = [3, 5, 20]
+    for window in windows:
+        if not is_forward:
+            new_col = '{}_rolling_{}_{}'.format(
+                col, aggregator.__name__, window)
+            df[new_col] = aggregator(df[col].rolling(
+                window)).fillna(method='backfill')
+        else:
+            new_col = '{}_fwd_rolling_{}_{}'.format(
+                col, aggregator.__name__, window)
+            df[new_col] = aggregator(df[col][::-1].rolling(
+                window)).fillna(method='backfill')[::-1]
