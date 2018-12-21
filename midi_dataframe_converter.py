@@ -159,6 +159,23 @@ def midi_file_to_data_frame(midi_file):
     df['sustain_rolling_sum'] = df.sustain.rolling(
         20).sum().fillna(method='backfill')
 
+    df['pitch_fwd_rolling_avg_3'] = df.pitch[::-1].rolling(
+        3).mean().fillna(method='backfill')[::-1]
+    df['pitch_fwd_rolling_avg_20'] = df.pitch[::-1].rolling(
+        20).mean().fillna(method='backfill')[::-1]
+    df['octave_fwd_rolling_avg_3'] = df.octave[::-1].rolling(
+        3).mean().fillna(method='backfill')[::-1]
+    df['octave_fwd_rolling_avg_20'] = df.octave[::-1].rolling(
+        20).mean().fillna(method='backfill')[::-1]
+    df['sustain_fwd_rolling_avg_3'] = df.sustain[::-1].rolling(
+        3).mean().fillna(method='backfill')[::-1]
+    df['sustain_fwd_rolling_avg_20'] = df.sustain[::-1].rolling(
+        20).mean().fillna(method='backfill')[::-1]
+    df['sustain_fwd_rolling_sum_3'] = df.sustain[::-1].rolling(
+        3).sum().fillna(method='backfill')[::-1]
+    df['sustain_fwd_rolling_sum_20'] = df.sustain[::-1].rolling(
+        20).sum().fillna(method='backfill')[::-1]
+
     # Calculate lag values (calculated by summing).
     for col in ['interval_from_released', 'interval_from_pressed',
                 'time_since_last_pressed', 'time_since_last_released']:
@@ -166,11 +183,20 @@ def midi_file_to_data_frame(midi_file):
             new_col = '{}_lag_{}'.format(col, i)
             df[new_col] = df[col].rolling(i).sum().fillna(0)
 
+        for i in range(1, 6):
+            new_col = '{}_fwd_lag_{}'.format(col, i)
+            df[new_col] = df[col][::-1].rolling(i).sum().fillna(0)[::-1]
+
     # Calculate lag values.
     for col in ['pitch_class', 'octave', 'follows_pause']:
         for i in range(1, 11):
             new_col = '{}_lag_{}'.format(col, i)
             df[new_col] = df[col].shift(i).fillna(method='backfill')
+
+        for i in range(1, 11):
+            new_col = '{}_fwd_lag_{}'.format(col, i)
+            df[new_col] = df[col][::-
+                                  1].shift(i).fillna(method='backfill')[::-1]
 
     return df
 
