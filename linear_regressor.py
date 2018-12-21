@@ -17,8 +17,7 @@ from directories import *
 
 
 # Load data.
-midi_data_filepaths = get_files(
-    midi_data_valid_quantized_path, ['.mid', '.MID'])
+midi_data_filepaths = get_files(midi_data_valid_path, ['.mid', '.MID'])
 train_filepaths, validate_filepaths = train_test_split(
     midi_data_filepaths, test_size=0.1, random_state=1988)
 
