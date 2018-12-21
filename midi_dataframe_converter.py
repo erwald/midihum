@@ -145,7 +145,9 @@ def midi_file_to_data_frame(midi_file):
 
     df['song_duration'] = song_duration
 
-    df['time_since_last_note'] = (df.time - df.time.shift(1)).fillna(0)
+    df['time_since_last_pressed'] = (df.time - df.time.shift(1)).fillna(0)
+    df['time_since_last_released'] = (
+        df.time - (df.time.shift(1) + df.sustain.shift(1))).fillna(0)
 
     # Calculate some rolling sums and averages.
     df['pitch_rolling_avg'] = df.pitch.rolling(
@@ -158,7 +160,8 @@ def midi_file_to_data_frame(midi_file):
         20).sum().fillna(method='backfill')
 
     # Calculate lag values (calculated by summing).
-    for col in ['interval_from_released', 'interval_from_pressed', 'time_since_last_note']:
+    for col in ['interval_from_released', 'interval_from_pressed',
+                'time_since_last_pressed', 'time_since_last_released']:
         for i in range(1, 6):
             new_col = '{}_lag_{}'.format(col, i)
             df[new_col] = df[col].rolling(i).sum().fillna(0)
