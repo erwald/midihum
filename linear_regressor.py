@@ -46,7 +46,7 @@ follows_pause_lag_names = [
     'follows_pause_lag_{}'.format(i) for i in range(1, 11)]
 category_names = ['pitch_class', 'follows_pause'] + follows_pause_lag_names
 continuous_names = [cat for cat in midi_df.columns if (
-    cat not in category_names + ['time', 'name'])]
+    cat not in category_names + ['velocity', 'time', 'name'])]
 dep_var = 'velocity'
 
 procs = [Categorify, Normalize]
