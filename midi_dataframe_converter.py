@@ -122,7 +122,7 @@ def midi_file_to_data_frame(midi_file):
             currently_playing_notes.append((pitch, time, note_on_data))
         elif (msg_type == 'note_off' or (msg_type == 'note_on' and velocity == 0)):
             assert (any(p == pitch for p, _, _ in currently_playing_notes)
-                    ), 'Warning: encountered note off event for pitch that has not been played'
+                    ), 'Encountered note off event for pitch that has not been played'
 
             note_on = _, note_on_time, note_on_data = next(
                 x for x in currently_playing_notes if x[0] == pitch)
