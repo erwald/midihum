@@ -42,10 +42,11 @@ valid_idx = range(len(midi_df) - len(validate_df), len(midi_df))
 midi_df['velocity'] = preprocessing.minmax_scale(
     midi_df.velocity.values, feature_range=(-1, 1))
 
-category_names = ['pitch_class',
-                  'follows_pause']
+follows_pause_lag_names = [
+    'follows_pause_lag_{}'.format(i) for i in range(1, 11)]
+category_names = ['pitch_class', 'follows_pause'] + follows_pause_lag_names
 continuous_names = [cat for cat in midi_df.columns if (
-    cat not in category_names + ['name'])]
+    cat not in category_names + ['time', 'name'])]
 dep_var = 'velocity'
 
 procs = [Categorify, Normalize]
@@ -55,7 +56,8 @@ data = (TabularList.from_df(midi_df, path=data_folder, cat_names=category_names,
         .databunch())
 
 # For each category, use an embedding size of half of the # of possible values.
-category_szs = {'pitch_class': 12, 'follows_pause': 2}
+follows_pause_lag_szs = dict([(name, 2) for name in follows_pause_lag_names])
+category_szs = {'pitch_class': 12, 'follows_pause': 2, **follows_pause_lag_szs}
 emb_szs = {k: v // 2 for k, v in category_szs.items()}
 
 learn = tabular_learner(
