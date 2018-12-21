@@ -80,6 +80,8 @@ print('Generating plots ...')
 
 sns.set()
 
+plt.subplots(figsize=(20, 20))
+
 plot = sns.heatmap(train_df.corr(), vmin=-1, vmax=1,
                    cmap='PiYG', xticklabels=True, yticklabels=True)
 plt.tight_layout()
