@@ -42,7 +42,7 @@ midi_df['velocity'] = preprocessing.minmax_scale(
     midi_df.velocity.values, feature_range=(-1, 1))
 
 follows_pause_lag_names = [
-    'follows_pause_lag_{}'.format(i) for i in range(1, 11)]
+    cat for cat in midi_df.columns if 'follows_pause_lag' in cat]
 category_names = ['pitch_class', 'follows_pause'] + follows_pause_lag_names
 continuous_names = [cat for cat in midi_df.columns if (
     cat not in category_names + ['velocity', 'time', 'name'])]
