@@ -72,6 +72,7 @@ predictions, targets = [x.numpy().flatten()
                         for x in learn.get_preds(DatasetType.Valid)]
 prediction_df = pd.DataFrame(
     {'name': validate_df.name, 'prediction': predictions, 'target': targets})
+prediction_df.error = (prediction_df.target - prediction_df.prediction).abs()
 print('Prediction range:', (np.amin(predictions), np.amax(predictions)))
 print('Predictions:', prediction_df.head())
 
@@ -96,7 +97,7 @@ plot.get_figure().savefig(os.path.join(
 plt.clf()
 
 # Plot relationship between predictions and targets.
-plot = sns.relplot(x='target', y='prediction', col='name',
+plot = sns.relplot(x='target', y='prediction', col='name', hue='error',
                    col_wrap=5, data=prediction_df)
 plot.set(xlim=(-1, 1), ylim=(-1, 1))
 plot.savefig(os.path.join(model_output_dir, 'predictions.png'))
