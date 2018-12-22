@@ -139,8 +139,8 @@ def midi_file_to_data_frame(midi_file):
                             average_pitch,
                             time / song_duration,
                             -(((time / song_duration) * 2 - 1) ** 2) + 1,
-                            interval_from_last_released_pitch,
                             interval_from_last_pressed_pitch,
+                            interval_from_last_released_pitch,
                             len(currently_playing_notes) + 1,
                             int(len(currently_playing_notes) == 0),
                             chord_character,
@@ -180,7 +180,7 @@ def midi_file_to_data_frame(midi_file):
     df = pd.DataFrame(result)
     df.columns = ['velocity', 'time', 'pitch', 'pitch_class', 'octave',
                   'avg_pitch_pressed', 'nearness_to_end', 'nearness_to_midpoint',
-                  'interval_from_released', 'interval_from_pressed',
+                  'interval_from_pressed', 'interval_from_released',
                   'num_played_notes_pressed', 'follows_pause',
                   'chord_character_pressed', 'chord_size_pressed', 'sustain',
                   'num_played_notes_released', 'avg_pitch_released',
