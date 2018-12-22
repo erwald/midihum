@@ -29,6 +29,13 @@ def midi_files_to_data_frame(midi_filepaths):
             df['mean_sustain'] = df['sustain'].mean()
             df['sustain_adj_by_mean'] = df['sustain'] / df['mean_sustain']
 
+            # Count occurrences of some categorical or category-like values.
+            df['pitch_class_occur_count'] = df.groupby(
+                'pitch_class').pitch_class.transform('count')
+            df['octave_occur_count'] = df.groupby(
+                'octave').octave.transform('count')
+            df['number_of_pauses'] = df.follows_pause.value_counts()[1] - 1
+
             # Add some metadata.
             df['name'] = os.path.split(midi_file.filename)[-1]  # Song name.
             df['number_of_notes'] = len(df)  # Total number of notes in song.
