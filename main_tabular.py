@@ -42,6 +42,14 @@ valid_idx = range(len(midi_df) - len(validate_df), len(midi_df))
 midi_df['velocity'] = preprocessing.minmax_scale(
     midi_df.velocity.values, feature_range=(0, 1))
 
+
+def get_column_names_matching(df, str):
+    '''Given a data frame and a string pattern, returns all the column names in
+    the data frame containing the string.
+    '''
+    return [cat for cat in df.columns if str in cat]
+
+
 follows_pause_names = get_column_names_matching(midi_df, 'follows_pause')
 chord_character_names = get_column_names_matching(midi_df, 'chord_character')
 chord_size_names = get_column_names_matching(midi_df, 'chord_size')
@@ -95,10 +103,3 @@ print('Predictions:', prediction_df.head())
 
 tabular_plotter.plot_data(train_df)
 tabular_plotter.plot_predictions(prediction_df)
-
-
-def get_column_names_matching(df, str):
-    '''Given a data frame and a string pattern, returns all the column names in
-    the data frame containing the string.
-    '''
-    return [cat for cat in df.columns if str in cat]
