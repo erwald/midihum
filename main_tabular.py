@@ -89,8 +89,10 @@ learn = tabular_learner(data, layers=[1000, 500], emb_szs=emb_szs, ps=[
 # learn.lr_find()
 # learn.recorder.plot()
 
-learn.fit_one_cycle(5, 1e-3)
+learn.fit_one_cycle(3, 1e-3)
+
 # learn.show_results()
+# learn.recorder.plot_losses(last=-1)
 
 predictions, targets = [x.numpy().flatten()
                         for x in learn.get_preds(DatasetType.Valid)]
