@@ -267,7 +267,7 @@ def add_engineered_features(df):
         'pitch_class').pitch_class.transform('count')
     df['octave_occur_count'] = df.groupby(
         'octave').octave.transform('count')
-    df['number_of_pauses'] = df.follows_pause.value_counts()[1] - 1
+    df['pause_count'] = df.follows_pause.value_counts()[1] - 1
 
     # Total number of notes in song.
     df['note_count'] = len(df)
