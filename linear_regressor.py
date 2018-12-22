@@ -39,7 +39,7 @@ valid_idx = range(len(midi_df) - len(validate_df), len(midi_df))
 
 # Normalise output.
 midi_df['velocity'] = preprocessing.minmax_scale(
-    midi_df.velocity.values, feature_range=(-1, 1))
+    midi_df.velocity.values, feature_range=(0, 1))
 
 follows_pause_lag_names = [
     cat for cat in midi_df.columns if 'follows_pause_lag' in cat]
@@ -58,9 +58,10 @@ data = (TabularList.from_df(midi_df, path=data_folder, cat_names=category_names,
 follows_pause_lag_szs = dict([(name, 2) for name in follows_pause_lag_names])
 category_szs = {'pitch_class': 12, 'follows_pause': 2, **follows_pause_lag_szs}
 emb_szs = {k: v // 2 for k, v in category_szs.items()}
+y_range = torch.tensor([0, 1.1], device=defaults.device)
 
 learn = tabular_learner(data, layers=[1000, 500], emb_szs=emb_szs, ps=[
-                        0.001, 0.01], emb_drop=0.04, y_range=None, metrics=exp_rmspe)
+                        1e-1, 2e-1], emb_drop=1e-1, y_range=y_range, metrics=exp_rmspe)
 
 # learn.lr_find()
 # learn.recorder.plot()
@@ -100,5 +101,5 @@ plt.clf()
 # Plot relationship between predictions and targets.
 plot = sns.relplot(x='target', y='prediction', col='name', hue='error',
                    col_wrap=5, data=prediction_df)
-plot.set(xlim=(-1, 1), ylim=(-1, 1))
+plot.set(xlim=(0, 1), ylim=(0, 1))
 plot.savefig(os.path.join(model_output_dir, 'predictions.png'))
