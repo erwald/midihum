@@ -2,9 +2,10 @@ import numpy as np
 import pandas as pd
 import os
 import pretty_midi
+from mido import Message, MetaMessage, MidiFile, MidiTrack
 
 from midi_utility import quantize, get_note_tracks
-from mido import Message, MetaMessage, MidiFile, MidiTrack
+from chord_identifier import chord_attributes
 
 
 def midi_files_to_data_frame(midi_filepaths):
@@ -105,8 +106,30 @@ def midi_file_to_data_frame(midi_file):
                 interval_from_last_pressed_pitch = interval_from_last_released_pitch
 
             # Get the average pitch of all notes currently being played.
-            average_pitch = np.mean(
-                [p for p, _, _ in currently_playing_notes] + [pitch])
+            curr_pitches = [p for p, _, _ in currently_playing_notes] + [pitch]
+            average_pitch = np.mean(curr_pitches)
+
+            # Add features denoting the quality of chord being played.
+            #
+            # That means there are six possible values for the 'character':
+            #   - is it minor?
+            #   - is it major?
+            #   - is it diminished?
+            #   - is it augmented?
+            #   - is it suspended?
+            #   - or none of the above.
+            #
+            # and seven possible values for the number of notes:
+            #   - is it a dyad?
+            #   - is it a triad?
+            #   - is it a seventh?
+            #   - is it a ninth?
+            #   - is it an eleventh?
+            #   - is it a thirteenth?
+            #   - or none of the above.
+            chord_attrs = chord_attributes(curr_pitches)
+            chord_character = chord_attrs[0] if chord_attrs is not None and chord_attrs[0] is not None else 'none'
+            chord_size = chord_attrs[1] if chord_attrs is not None and chord_attrs[1] is not None else 'none'
 
             note_on_data = [velocity,
                             time,
@@ -119,7 +142,9 @@ def midi_file_to_data_frame(midi_file):
                             interval_from_last_released_pitch,
                             interval_from_last_pressed_pitch,
                             len(currently_playing_notes) + 1,
-                            int(len(currently_playing_notes) == 0)]
+                            int(len(currently_playing_notes) == 0),
+                            chord_character,
+                            chord_size]
 
             currently_playing_notes.append((pitch, time, note_on_data))
         elif (msg_type == 'note_off' or (msg_type == 'note_on' and velocity == 0)):
@@ -133,8 +158,20 @@ def midi_file_to_data_frame(midi_file):
             sustain_duration = time - note_on_time
             assert sustain_duration > 0, 'Encountered note sustained for a duration of 0'
 
+            # Get the average pitch of all notes currently being played.
+            curr_pitches = [p for p, _, _ in currently_playing_notes] + [pitch]
+            average_pitch = np.mean(curr_pitches)
+
+            # See the comment further up for an explanation of this.
+            chord_attrs = chord_attributes(curr_pitches)
+            chord_character = chord_attrs[0] if chord_attrs is not None and chord_attrs[0] is not None else 'none'
+            chord_size = chord_attrs[1] if chord_attrs is not None and chord_attrs[1] is not None else 'none'
+
             note_off_data = [sustain_duration,
-                             len(currently_playing_notes)]
+                             len(currently_playing_notes),
+                             average_pitch,
+                             chord_character,
+                             chord_size]
 
             # Add new row to result and sort all rows by note time (2nd column).
             result.append(note_on_data + note_off_data)
@@ -142,10 +179,12 @@ def midi_file_to_data_frame(midi_file):
 
     df = pd.DataFrame(result)
     df.columns = ['velocity', 'time', 'pitch', 'pitch_class', 'octave',
-                  'curr_avg_pitch', 'nearness_to_end', 'nearness_to_midpoint',
+                  'avg_pitch_pressed', 'nearness_to_end', 'nearness_to_midpoint',
                   'interval_from_released', 'interval_from_pressed',
-                  'num_played_notes_pressed', 'follows_pause', 'sustain',
-                  'num_played_notes_released']
+                  'num_played_notes_pressed', 'follows_pause',
+                  'chord_character_pressed', 'chord_size_pressed', 'sustain',
+                  'num_played_notes_released', 'avg_pitch_released',
+                  'chord_character_released', 'chord_size_released']
 
     df['song_duration'] = song_duration
 
@@ -181,6 +220,10 @@ def add_engineered_features(df):
         df.time - df.groupby('octave')['time'].shift()).fillna(0)
     df['time_since_pause'] = (
         df.time - df.groupby('follows_pause')['time'].shift()).fillna(0)
+    df['time_since_chord_character'] = (
+        df.time - df.groupby('chord_character_pressed')['time'].shift()).fillna(0)
+    df['time_since_chord_size'] = (
+        df.time - df.groupby('chord_size_pressed')['time'].shift()).fillna(0)
 
     # Calculate some rolling means.
     for col in ['pitch', 'octave', 'sustain']:

@@ -48,7 +48,7 @@ QUALITY_MAP = OrderedDict((
 # Dictionary of chords qualities and their attributes.
 QUALITY_ATTRIBUTES_MAP = OrderedDict((
     # chords consist of 2 notes
-    ('5', (None, 'dyad')),
+    ('5', ('indeterminate', 'dyad')),
     ('m3', ('minor', 'dyad')),
     ('M3', ('major', 'dyad')),
     # 3 notes
@@ -139,15 +139,16 @@ def attributes_for_chord_quality(chord_quality):
 
 def chord_attributes(chord):
     ''' Finds the quality of the given chord, including any inversions of it.
-    Returns a list of tuples, each with a root note and as a chord quality.
+    Returns a tuple of the first match, with chord attributes.
 
     Based on https://github.com/yuma-m/pychord/blob/master/pychord/analyzer.py .
 
     :param list[int] chord: a chord in integer notation, e.g. [0, 4, 7]
-    :rtype: [(int,str)]|None
+    :rtype: (str,str)|None
     '''
-    if len(chord) <= 1:
+    if len(chord) < 2:
         return None
+
     # Make sure root is at 0, and that all notes fit within the octave. Iow,
     # that all note values are between 0 and 11, sorted in ascending order.
     chord = clamp_into_octave(chord)
