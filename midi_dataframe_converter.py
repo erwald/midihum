@@ -208,7 +208,7 @@ def midi_file_to_data_frame(midi_file):
 
 
 def note_events_for_track(track, quantization):
-    '''Takes a track and returns a list of notes in the track, as 
+    '''Takes a track and returns a list of notes in the track, as
     represented by a tuple of (cumulative) time, note type ('on' or 'off'),
     pitch value and velocity.
     '''
