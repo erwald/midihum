@@ -65,7 +65,7 @@ learn = tabular_learner(data, layers=[200, 100], emb_szs=emb_szs, ps=[
 # learn.lr_find()
 # learn.recorder.plot()
 
-learn.fit_one_cycle(5, 1e-4)
+learn.fit_one_cycle(5, 1e-3)
 # learn.show_results()
 
 predictions, targets = [x.numpy().flatten()
