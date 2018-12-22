@@ -72,7 +72,8 @@ predictions, targets = [x.numpy().flatten()
                         for x in learn.get_preds(DatasetType.Valid)]
 prediction_df = pd.DataFrame(
     {'name': validate_df.name, 'prediction': predictions, 'target': targets})
-prediction_df.error = (prediction_df.target - prediction_df.prediction).abs()
+prediction_df['error'] = (prediction_df.target -
+                          prediction_df.prediction).abs()
 print('Prediction range:', (np.amin(predictions), np.amax(predictions)))
 print('Predictions:', prediction_df.head())
 
