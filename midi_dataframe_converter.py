@@ -108,11 +108,16 @@ def midi_file_to_data_frame(midi_file):
             else:
                 interval_from_last_pressed_pitch = interval_from_last_released_pitch
 
+            # Get the average pitch of all notes currently being played.
+            average_pitch = np.mean(
+                [p for p, _, _ in currently_playing_notes] + [pitch])
+
             note_on_data = [velocity,
                             time,
                             pitch,
                             pitch % 12,
                             pitch // 12,
+                            average_pitch,
                             time / song_duration,
                             -(((time / song_duration) * 2 - 1) ** 2) + 1,
                             interval_from_last_released_pitch,
@@ -141,7 +146,7 @@ def midi_file_to_data_frame(midi_file):
 
     df = pd.DataFrame(result)
     df.columns = ['velocity', 'time', 'pitch', 'pitch_class', 'octave',
-                  'nearness_to_end', 'nearness_to_midpoint',
+                  'curr_avg_pitch', 'nearness_to_end', 'nearness_to_midpoint',
                   'interval_from_released', 'interval_from_pressed',
                   'num_played_notes_pressed', 'follows_pause', 'sustain',
                   'num_played_notes_released']
