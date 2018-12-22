@@ -14,6 +14,61 @@ def plot_data(df):
     '''
     print('Plotting data ...')
 
+    cat_names = ['pitch_class',
+                 'octave',
+                 'follows_pause',
+                 'chord_character_pressed',
+                 'chord_size_pressed',
+                 'chord_character_released',
+                 'chord_size_released']
+    cont_names = ['velocity',
+                  'pitch',
+                  'interval_from_pressed',
+                  'interval_from_released',
+                  'sustain',
+                  'time_since_last_pressed',
+                  'time_since_last_released',
+                  'time_since_pitch_class',
+                  'time_since_octave',
+                  'time_since_pause',
+                  'time_since_chord_character',
+                  'time_since_chord_size']
+
+    # Box-and-whispers plots of categorical variables.
+    for col in cat_names:
+        plot = sns.boxplot(x=col, y='velocity', data=df)
+        plot.get_figure().savefig(os.path.join(
+            model_output_dir, 'boxplot_{}.png'.format(col)))
+        plt.clf()
+
+    # Count plots.
+    for col in cat_names:
+        plot = sns.countplot(x=col, palette='rocket', data=df)
+        plot.get_figure().savefig(os.path.join(
+            model_output_dir, 'countplot_{}.png'.format(col)))
+        plt.clf()
+
+    # Distribution plots.
+    for col in cont_names:
+        plot = sns.distplot(df[col])
+        plot.get_figure().savefig(os.path.join(
+            model_output_dir, 'distplot_{}.png'.format(col)))
+        plt.clf()
+
+    # Bar plots for categorical values against velocity.
+    for col in cat_names:
+        plot = sns.barplot(x=df[col], y=df.velocity, palette='rocket')
+        plot.get_figure().savefig(os.path.join(
+            model_output_dir, 'barplot_{}_vs_velocity.png'.format(col)))
+        plt.clf()
+
+    # Hex + dist plots for continuous names against velocity.
+    for col in [name for name in cont_names if name != 'velocity']:
+        plot = sns.jointplot(x=col, y='velocity', data=df, kind='hex')
+        plot.savefig(os.path.join(model_output_dir,
+                                  'hexplot_{}_vs_velocity.png'.format(col)))
+        plt.clf()
+
     plt.subplots(figsize=(20, 20))
 
     # Heatmap of correlations.
