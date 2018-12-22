@@ -25,22 +25,11 @@ def midi_files_to_data_frame(midi_filepaths):
         try:
             df = midi_file_to_data_frame(midi_file)
 
-            # Create some averages.
-            df['mean_sustain'] = df['sustain'].mean()
-            df['sustain_adj_by_mean'] = df['sustain'] / df['mean_sustain']
+            # Add additional features derived from the existing ones.
+            add_engineered_features(df)
 
-            # Count occurrences of some categorical or category-like values.
-            df['pitch_class_occur_count'] = df.groupby(
-                'pitch_class').pitch_class.transform('count')
-            df['octave_occur_count'] = df.groupby(
-                'octave').octave.transform('count')
-            df['number_of_pauses'] = df.follows_pause.value_counts()[1] - 1
-
-            # Add some metadata.
-            df['name'] = os.path.split(midi_file.filename)[-1]  # Song name.
-            df['number_of_notes'] = len(df)  # Total number of notes in song.
-            df['num_of_notes_adj_by_dur'] = len(
-                df) / df['song_duration'][0]  # Total # notes / duration of song.
+            # Add the name of the song.
+            df['name'] = os.path.split(midi_file.filename)[-1]
 
             # Get time signature. Enable this when we don't use only 4/4.
             if False:
@@ -160,6 +149,28 @@ def midi_file_to_data_frame(midi_file):
 
     df['song_duration'] = song_duration
 
+    return df
+
+
+def note_events_for_track(track, quantization):
+    '''Takes a track and returns a list of notes in the track, as
+    represented by a tuple of (cumulative) time, note type ('on' or 'off'),
+    pitch value and velocity.
+    '''
+    time_messages = [msg for msg in track if hasattr(msg, 'time')]
+    cum_times = np.cumsum([msg.time for msg in time_messages])
+    return [(time,
+             msg.type,
+             msg.note,
+             msg.velocity)
+            for (time, msg) in zip(cum_times, time_messages)
+            if msg.type == 'note_on' or msg.type == 'note_off']
+
+
+def add_engineered_features(df):
+    '''Takes a data frame representing one MIDI song and adds a bunch of 
+    additional features to it.
+    '''
     # Get time elapsed since various events.
     df['time_since_last_pressed'] = (df.time - df.time.shift()).fillna(0)
     df['time_since_last_released'] = (
@@ -193,7 +204,7 @@ def midi_file_to_data_frame(midi_file):
             new_col = '{}_fwd_lag_{}'.format(col, i)
             df[new_col] = df[col][::-1].rolling(i).sum().fillna(0)[::-1]
 
-    # Calculate lag values.
+    # Calculate lag values (just taking the values of the previous/next rows).
     for col in ['pitch_class', 'octave', 'follows_pause']:
         for i in range(1, 11):
             new_col = '{}_lag_{}'.format(col, i)
@@ -204,22 +215,22 @@ def midi_file_to_data_frame(midi_file):
             df[new_col] = df[col][::-
                                   1].shift(i).fillna(method='backfill')[::-1]
 
-    return df
+    # Create some averages.
+    df['mean_sustain'] = df.sustain.mean()
+    df['sustain_adj_by_mean'] = df.sustain / df.mean_sustain
 
+    # Count occurrences of some categorical or category-like values.
+    df['pitch_class_occur_count'] = df.groupby(
+        'pitch_class').pitch_class.transform('count')
+    df['octave_occur_count'] = df.groupby(
+        'octave').octave.transform('count')
+    df['number_of_pauses'] = df.follows_pause.value_counts()[1] - 1
 
-def note_events_for_track(track, quantization):
-    '''Takes a track and returns a list of notes in the track, as
-    represented by a tuple of (cumulative) time, note type ('on' or 'off'),
-    pitch value and velocity.
-    '''
-    time_messages = [msg for msg in track if hasattr(msg, 'time')]
-    cum_times = np.cumsum([msg.time for msg in time_messages])
-    return [(time,
-             msg.type,
-             msg.note,
-             msg.velocity)
-            for (time, msg) in zip(cum_times, time_messages)
-            if msg.type == 'note_on' or msg.type == 'note_off']
+    # Total number of notes in song.
+    df['note_count'] = len(df)
+
+    # Total number of notes divided by duration of song.
+    df['note_count_adj_by_dur'] = len(df) / df.song_duration[0]
 
 
 def add_rolling_column(df, col, aggregator=pd.core.window.Rolling.mean, is_forward=False):
