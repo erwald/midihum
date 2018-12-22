@@ -153,9 +153,16 @@ def midi_file_to_data_frame(midi_file):
 
     df['song_duration'] = song_duration
 
-    df['time_since_last_pressed'] = (df.time - df.time.shift(1)).fillna(0)
+    # Get time elapsed since various events.
+    df['time_since_last_pressed'] = (df.time - df.time.shift()).fillna(0)
     df['time_since_last_released'] = (
-        df.time - (df.time.shift(1) + df.sustain.shift(1))).fillna(0)
+        df.time - (df.time.shift() + df.sustain.shift())).fillna(0)
+    df['time_since_pitch_class'] = (
+        df.time - df.groupby('pitch_class')['time'].shift()).fillna(0)
+    df['time_since_octave'] = (
+        df.time - df.groupby('octave')['time'].shift()).fillna(0)
+    df['time_since_pause'] = (
+        df.time - df.groupby('follows_pause')['time'].shift()).fillna(0)
 
     # Calculate some rolling means.
     for col in ['pitch', 'octave', 'sustain']:
