@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 import glob
-import seaborn as sns
+import torch
 from fastai import *
 from fastai.imports import *
 from fastai.basic_train import *
@@ -14,6 +14,7 @@ from sklearn.model_selection import train_test_split
 
 from midi_dataframe_converter import midi_files_to_data_frame
 from directories import *
+import tabular_plotter
 
 
 # Load data.
@@ -78,28 +79,5 @@ prediction_df['error'] = (prediction_df.target -
 print('Prediction range:', (np.amin(predictions), np.amax(predictions)))
 print('Predictions:', prediction_df.head())
 
-print('Generating plots ...')
-
-sns.set()
-
-plt.subplots(figsize=(20, 20))
-
-plot = sns.heatmap(train_df.corr(), vmin=-1, vmax=1,
-                   cmap='PiYG', xticklabels=True, yticklabels=True)
-plt.tight_layout()
-plot.get_figure().savefig(os.path.join(
-    model_output_dir, 'regression_correlations.png'))
-plt.clf()
-
-plot = sns.heatmap(np.abs(train_df.corr()), vmin=0, vmax=1,
-                   cmap='Blues', xticklabels=True, yticklabels=True)
-plt.tight_layout()
-plot.get_figure().savefig(os.path.join(
-    model_output_dir, 'regression_correlations_absolute.png'))
-plt.clf()
-
-# Plot relationship between predictions and targets.
-plot = sns.relplot(x='target', y='prediction', col='name', hue='error',
-                   col_wrap=5, data=prediction_df)
-plot.set(xlim=(0, 1), ylim=(0, 1))
-plot.savefig(os.path.join(model_output_dir, 'predictions.png'))
+tabular_plotter.plot_data(train_df)
+tabular_plotter.plot_predictions(prediction_df)
