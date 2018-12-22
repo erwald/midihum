@@ -76,7 +76,7 @@ emb_szs = {k: v // 2 for k, v in category_szs.items()}
 y_range = torch.tensor([0, 1.2], device=defaults.device)
 
 learn = tabular_learner(data, layers=[1000, 500], emb_szs=emb_szs, ps=[
-                        1e-1, 2e-1], emb_drop=1e-1, y_range=y_range, metrics=exp_rmspe)
+                        2e-1, 5e-1], emb_drop=1e-1, y_range=y_range, metrics=exp_rmspe)
 
 # learn.lr_find()
 # learn.recorder.plot()
