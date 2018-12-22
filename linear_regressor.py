@@ -59,7 +59,7 @@ follows_pause_lag_szs = dict([(name, 2) for name in follows_pause_lag_names])
 category_szs = {'pitch_class': 12, 'follows_pause': 2, **follows_pause_lag_szs}
 emb_szs = {k: v // 2 for k, v in category_szs.items()}
 
-learn = tabular_learner(data, layers=[200, 100], emb_szs=emb_szs, ps=[
+learn = tabular_learner(data, layers=[1000, 500], emb_szs=emb_szs, ps=[
                         0.001, 0.01], emb_drop=0.04, y_range=None, metrics=exp_rmspe)
 
 # learn.lr_find()
