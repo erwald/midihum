@@ -95,10 +95,6 @@ plot.get_figure().savefig(os.path.join(
     model_output_dir, 'regression_correlations_absolute.png'))
 plt.clf()
 
-plot = sns.pairplot(train_df)
-plot.savefig(os.path.join(model_output_dir, 'pairwise_relationships.png'))
-plt.clf()
-
 # Plot relationship between predictions and targets.
 plot = sns.relplot(x='target', y='prediction', col='name',
                    col_wrap=5, data=prediction_df)
