@@ -69,7 +69,7 @@ def plot_data(df):
                                   'hexplot_{}_vs_velocity.png'.format(col)))
         plt.clf()
 
-    plt.subplots(figsize=(20, 20))
+    plt.subplots(figsize=(30, 30))
 
     # Heatmap of correlations.
     plot = sns.heatmap(df.corr(), vmin=-1, vmax=1,
