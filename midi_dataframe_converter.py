@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import pretty_midi
 from mido import Message, MetaMessage, MidiFile, MidiTrack
+from sklearn import metrics, preprocessing
 
 from midi_utility import quantize, get_note_tracks
 from chord_identifier import chord_attributes
@@ -218,16 +219,13 @@ def add_engineered_features(df):
     df['time_since_last_pressed'] = (df.time - df.time.shift()).fillna(0)
     df['time_since_last_released'] = (
         df.time - (df.time.shift() + df.sustain.shift())).fillna(0)
-    df['time_since_pitch_class'] = (
-        df.time - df.groupby('pitch_class')['time'].shift()).fillna(0)
-    df['time_since_octave'] = (
-        df.time - df.groupby('octave')['time'].shift()).fillna(0)
-    df['time_since_pause'] = (
-        df.time - df.groupby('follows_pause')['time'].shift()).fillna(0)
-    df['time_since_chord_character'] = (
-        df.time - df.groupby('chord_character_pressed')['time'].shift()).fillna(0)
-    df['time_since_chord_size'] = (
-        df.time - df.groupby('chord_size_pressed')['time'].shift()).fillna(0)
+
+    # Get time elapsed since various further events. Since some of these happen
+    # rather rarely (resulting in some very large values), we also normalise.
+    for cat in ['pitch_class', 'octave', 'follows_pause', 'chord_character', 'chord_size']:
+        new_cat = 'time_since_{}'.format(cat)
+        df[new_cat] = preprocessing.scale(
+            (df.time - df.groupby(cat)['time'].shift()).fillna(0).values)
 
     # Calculate some rolling means.
     for col in ['pitch', 'octave', 'sustain']:
