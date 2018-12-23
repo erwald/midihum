@@ -43,11 +43,11 @@ midi_df['velocity'] = preprocessing.minmax_scale(
     midi_df.velocity.values, feature_range=(0, 1))
 
 
-def get_column_names_matching(df, str):
+def get_column_names_matching(df, pattern):
     '''Given a data frame and a string pattern, returns all the column names in
     the data frame containing the string.
     '''
-    return [cat for cat in df.columns if str in cat]
+    return [cat for cat in df.columns if pattern in cat]
 
 
 follows_pause_names = get_column_names_matching(midi_df, 'follows_pause')
