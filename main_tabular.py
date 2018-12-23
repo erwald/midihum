@@ -76,7 +76,7 @@ category_szs = {'pitch_class': 12,
                 **follows_pause_szs,
                 **chord_character_szs,
                 **chord_size_szs}
-emb_szs = {k: v // 2 for k, v in category_szs.items()}
+emb_szs = {k: (v + 1) // 2 for k, v in category_szs.items()}
 
 # Create a range between which all of our output values should be. (We set the
 # upper bound to 1.2 because of the last layer being a sigmoid, meaning it is
