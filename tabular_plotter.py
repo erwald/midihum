@@ -30,9 +30,11 @@ def plot_data(df):
                   'time_since_last_released',
                   'time_since_pitch_class',
                   'time_since_octave',
-                  'time_since_pause',
+                  'time_since_follows_pause',
                   'time_since_chord_character',
-                  'time_since_chord_size']
+                  'time_since_chord_size',
+                  'chord_character_occur_count',
+                  'chord_size_occur_count']
 
     # Box-and-whispers plots of categorical variables.
     for col in cat_names:
