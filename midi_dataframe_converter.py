@@ -60,15 +60,15 @@ def midi_files_to_data_frame(midi_filepaths):
     return combined_df
 
 
-def midi_file_to_data_frame(midi_file):
+def midi_file_to_data_frame(midi_file, quantization=4):
     '''Returns a the MIDI file represented as a Data Frame.
 
     Arguments:
-    mid -- MIDI object with a 4/4 time signature.'''
-
-    # The (minimum) note duration, represented as 1/2**quantization. So e.g. a
-    # quantization value of 4 gives note lengths of multiples of 1/16.
-    quantization = 4
+    mid -- MIDI object with a 4/4 time signature.
+    quantization -- The (minimum) note duration, represented as 
+        1/2**quantization. So e.g. a quantization value of 4 gives note lengths 
+        of multiples of 1/16.
+    '''
 
     # Quantize the notes to a grid of time steps.
     midi_file = quantize(midi_file, quantization=quantization)
@@ -89,9 +89,6 @@ def midi_file_to_data_frame(midi_file):
         time, msg_type, pitch, velocity = event
 
         if msg_type == 'note_on' and velocity > 0:
-            assert not (any(p == pitch for p, _, _ in currently_playing_notes)
-                        ), 'Pitch played again before previous one ended'
-
             # Get interval after the last released note by getting that note and
             # checking the difference between the pitch values.
             if len(result) > 0:
@@ -149,8 +146,10 @@ def midi_file_to_data_frame(midi_file):
 
             currently_playing_notes.append((pitch, time, note_on_data))
         elif (msg_type == 'note_off' or (msg_type == 'note_on' and velocity == 0)):
-            assert (any(p == pitch for p, _, _ in currently_playing_notes)
-                    ), 'Encountered note off event for pitch that has not been played'
+            if not (any(p == pitch for p, _, _ in currently_playing_notes)):
+                print('Warning: encountered {} event with velocity {} for pitch that has not been played'.format(
+                    msg_type, velocity))
+                continue
 
             note_on = _, note_on_time, note_on_data = next(
                 x for x in currently_playing_notes if x[0] == pitch)

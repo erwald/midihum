@@ -16,9 +16,12 @@ from midi_dataframe_converter import midi_files_to_data_frame
 from directories import *
 import tabular_plotter
 
+# Create necessary directories.
+create_directories()
 
 # Load data.
 midi_data_filepaths = get_files(midi_data_valid_path, ['.mid', '.MID'])
+
 train_filepaths, validate_filepaths = train_test_split(
     midi_data_filepaths, test_size=0.1, random_state=1988)
 
