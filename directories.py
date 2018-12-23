@@ -3,6 +3,7 @@ import os
 # Data
 midi_data_path = 'midi_data'
 midi_data_valid_path = 'midi_data_valid'
+midi_data_valid_repaired_path = 'midi_data_valid_repaired'
 midi_data_valid_quantized_path = 'midi_data_valid_quantized'
 
 # Model.
@@ -19,5 +20,12 @@ baseline_output_dir = 'output_baseline'
 
 
 def create_directories():
-    dirs = [model_dir, output_dir, model_output_dir, baseline_output_dir]
+    dirs = [midi_data_path,
+            midi_data_valid_path,
+            midi_data_valid_repaired_path,
+            midi_data_valid_quantized_path,
+            model_dir,
+            output_dir,
+            model_output_dir,
+            baseline_output_dir]
     [os.makedirs(d) for d in dirs if not os.path.exists(d)]

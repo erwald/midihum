@@ -114,6 +114,7 @@ input_valid_inputs/
 input_valid_velocities/
 midi_data/
 midi_data_valid/
+midi_data_valid_repaired/
 midi_data_valid_quantized/
 midi_data_valid_quantized_inputs/
 midi_data_valid_quantized_velocities/
