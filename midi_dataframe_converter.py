@@ -162,16 +162,9 @@ def midi_file_to_data_frame(midi_file):
             curr_pitches = [p for p, _, _ in currently_playing_notes] + [pitch]
             average_pitch = np.mean(curr_pitches)
 
-            # See the comment further up for an explanation of this.
-            chord_attrs = chord_attributes(curr_pitches)
-            chord_character = chord_attrs[0] if chord_attrs is not None and chord_attrs[0] is not None else 'none'
-            chord_size = chord_attrs[1] if chord_attrs is not None and chord_attrs[1] is not None else 'none'
-
             note_off_data = [sustain_duration,
                              len(currently_playing_notes),
-                             average_pitch,
-                             chord_character,
-                             chord_size]
+                             average_pitch]
 
             # Add new row to result and sort all rows by note time (2nd column).
             result.append(note_on_data + note_off_data)
@@ -183,8 +176,7 @@ def midi_file_to_data_frame(midi_file):
                   'interval_from_pressed', 'interval_from_released',
                   'num_played_notes_pressed', 'follows_pause',
                   'chord_character_pressed', 'chord_size_pressed', 'sustain',
-                  'num_played_notes_released', 'avg_pitch_released',
-                  'chord_character_released', 'chord_size_released']
+                  'num_played_notes_released', 'avg_pitch_released']
 
     df['song_duration'] = song_duration
 
@@ -210,7 +202,19 @@ def add_engineered_features(df):
     '''Takes a data frame representing one MIDI song and adds a bunch of 
     additional features to it.
     '''
-    # Get time elapsed since various events.
+    # Calculate 'true' chord character and size by bunching all samples within
+    # 5 time units together and picking the chord character and size of the last
+    # of each group for all of them.
+    #
+    # This makes it so that, if a chord is played with not all notes perfectly
+    # at the same time, even the first notes here will get the information of
+    # the full chord (hopefully).
+    df['chord_character'] = df.groupby(
+        np.floor(df.time / 5) * 5).chord_character_pressed.transform('last')
+    df['chord_size'] = df.groupby(
+        np.floor(df.time / 5) * 5).chord_size_pressed.transform('last')
+
+    # Get time elapsed since last note event(s).
     df['time_since_last_pressed'] = (df.time - df.time.shift()).fillna(0)
     df['time_since_last_released'] = (
         df.time - (df.time.shift() + df.sustain.shift())).fillna(0)
@@ -248,7 +252,7 @@ def add_engineered_features(df):
             df[new_col] = df[col][::-1].rolling(i).sum().fillna(0)[::-1]
 
     # Calculate lag values (just taking the values of the previous/next rows).
-    for col in ['pitch_class', 'octave', 'follows_pause']:
+    for col in ['pitch_class', 'octave', 'follows_pause', 'chord_character', 'chord_size']:
         for i in range(1, 11):
             new_col = '{}_lag_{}'.format(col, i)
             df[new_col] = df[col].shift(i).fillna(method='backfill')

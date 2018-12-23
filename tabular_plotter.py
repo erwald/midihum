@@ -19,8 +19,8 @@ def plot_data(df):
                  'follows_pause',
                  'chord_character_pressed',
                  'chord_size_pressed',
-                 'chord_character_released',
-                 'chord_size_released']
+                 'chord_character',
+                 'chord_size']
     cont_names = ['velocity',
                   'pitch',
                   'interval_from_pressed',
