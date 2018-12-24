@@ -112,7 +112,8 @@ class RachelTabular:
                 .label_from_df(cols=dep_var, label_cls=FloatList)
                 .databunch())
 
-        # For each category, use an embedding size of half of the # of possible values.
+        # For each category, use an embedding size of half of the # of possible
+        # values.
         follows_pause_szs = dict([(name, 2) for name in follows_pause_names])
         chord_character_szs = dict([(name, 6)
                                     for name in chord_character_names])
@@ -124,9 +125,9 @@ class RachelTabular:
                         **chord_size_szs}
         emb_szs = {k: (v + 1) // 2 for k, v in category_szs.items()}
 
-        # Create a range between which all of our output values should be. (We set the
-        # upper bound to 1.2 because of the last layer being a sigmoid, meaning it is
-        # very unlikely to reach the extremes.)
+        # Create a range between which all of our output values should be. (We
+        # set the upper bound to 1.2 because of the last layer being a sigmoid,
+        # meaning it is very unlikely to reach the extremes.)
         y_range = torch.tensor([0, 1.2], device=defaults.device)
 
         learn = tabular_learner(data,
