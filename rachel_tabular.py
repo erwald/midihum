@@ -139,8 +139,10 @@ class RachelTabular:
                                 metrics=exp_rmspe)
 
         # Load the existing model if there is one.
-        if os.path.isfile(os.path.join(self.data_folder, 'models', self.model_name + '.pth')):
-            print('Loading model')
+        model_path = os.path.join(
+            self.data_folder, 'models', self.model_name + '.pth')
+        if os.path.isfile(model_path):
+            print(f'Loading saved model from {model_path} ...')
             learn.load(self.model_name)
 
         return learn
