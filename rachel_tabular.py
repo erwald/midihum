@@ -11,6 +11,7 @@ from fastai.metrics import *
 from fastai.data_block import *
 from sklearn.model_selection import train_test_split
 from sklearn import metrics, preprocessing
+from mido import MidiFile
 
 from directories import *
 from midi_dataframe_converter import midi_files_to_data_frame
@@ -97,8 +98,12 @@ class RachelTabular:
             self.midi_df, '^chord_size(_pressed|\_(lag|fwd_lag)\_\d)?')
         category_names = (['pitch_class'] + follows_pause_names +
                           chord_character_names + chord_size_names)
+
+        # Define names of continuous columns.
+        columns_to_skip = ['velocity', 'time',
+                           'midi_track_index', 'midi_event_index', 'name']
         continuous_names = [cat for cat in self.midi_df.columns if (
-            cat not in category_names + ['velocity', 'time', 'name'])]
+            cat not in category_names + columns_to_skip)]
 
         dep_var = 'velocity'
 
@@ -173,6 +178,29 @@ class RachelTabular:
         print('Predictions:', prediction_df.head())
 
         tabular_plotter.plot_predictions(prediction_df)
+
+    def humanize(self, midi_filepath, quantization=4):
+        df = midi_files_to_data_frame(midi_filepaths=[midi_filepath])
+
+        # Print some information about the input data.
+        print('Input shape:', df.shape)
+        print('Input head:\n', df.head())
+        print('Input tail:\n', df.tail())
+
+        # Make velocity predictions for each row (note on) of the input.
+        df['prediction'] = [self.learn.predict(row)[2].numpy().flatten()[0]
+                            for _, row in df.iterrows()]
+
+        # Load input MIDI file and, for each prediction, set the new velocity.
+        midi_file = MidiFile(midi_filepath)
+        for _, row in df.iterrows():
+            velocity = min(round(row.prediction * 127), 127)
+            midi_file.tracks[row.midi_track_index][row.midi_event_index].velocity = velocity
+
+        # Save the MIDI file with the new velocities to the output directory.
+        out_path = os.path.join(output_dir, os.path.split(midi_filepath)[-1])
+        print(f'Saving humanized file to {out_path}')
+        midi_file.save(out_path)
 
     def get_column_names_matching(self, df, pattern):
         '''Given a data frame and a string regex pattern, returns all the column

@@ -75,24 +75,24 @@ def midi_file_to_data_frame(midi_file, quantization=4):
 
     result = []
 
-    note_event_tracks = [note_events_for_track(track=track,
-                                               quantization=quantization)
-                         for _, track in get_note_tracks(midi_file)]
-    note_events = [event for track in note_event_tracks for event in track]
-    note_events.sort(key=lambda event: event[0])
+    note_event_tracks = [(track_idx, note_events_for_track(track=track, quantization=quantization))
+                         for track_idx, track in get_note_tracks(midi_file)]
+    note_events = [(event, event_idx, track_idx)
+                   for track_idx, track in note_event_tracks for event_idx, event in track]
+    note_events.sort(key=lambda event: event[0][0])
 
-    song_duration = note_events[-1][0]  # Get time of final event.
+    song_duration = note_events[-1][0][0]  # Get time of final event.
 
     currently_playing_notes = []
 
-    for event in note_events:
+    for event, event_idx, track_idx in note_events:
         time, msg_type, pitch, velocity = event
 
         if msg_type == 'note_on' and velocity > 0:
             # Get interval after the last released note by getting that note and
             # checking the difference between the pitch values.
             if len(result) > 0:
-                interval_from_last_released_pitch = pitch - result[-1][2]
+                interval_from_last_released_pitch = pitch - result[-1][4]
             else:
                 interval_from_last_released_pitch = 0
 
@@ -131,6 +131,8 @@ def midi_file_to_data_frame(midi_file, quantization=4):
 
             note_on_data = [velocity,
                             time,
+                            track_idx,
+                            event_idx,
                             pitch,
                             pitch % 12,
                             pitch // 12,
@@ -175,8 +177,9 @@ def midi_file_to_data_frame(midi_file, quantization=4):
             result.sort(key=lambda row: row[1])
 
     df = pd.DataFrame(result)
-    df.columns = ['velocity', 'time', 'pitch', 'pitch_class', 'octave',
-                  'avg_pitch_pressed', 'nearness_to_end', 'nearness_to_midpoint',
+    df.columns = ['velocity', 'time', 'midi_track_index', 'midi_event_index',
+                  'pitch', 'pitch_class', 'octave', 'avg_pitch_pressed',
+                  'nearness_to_end', 'nearness_to_midpoint',
                   'interval_from_pressed', 'interval_from_released',
                   'num_played_notes_pressed', 'follows_pause',
                   'chord_character_pressed', 'chord_size_pressed', 'sustain',
@@ -194,11 +197,11 @@ def note_events_for_track(track, quantization):
     '''
     time_messages = [msg for msg in track if hasattr(msg, 'time')]
     cum_times = np.cumsum([msg.time for msg in time_messages])
-    return [(time,
-             msg.type,
-             msg.note,
-             msg.velocity)
-            for (time, msg) in zip(cum_times, time_messages)
+    return [(idx, (time,
+                   msg.type,
+                   msg.note,
+                   msg.velocity))
+            for (idx, (time, msg)) in enumerate(zip(cum_times, time_messages))
             if msg.type == 'note_on' or msg.type == 'note_off']
 
 

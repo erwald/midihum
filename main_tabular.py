@@ -22,3 +22,6 @@ rachel = RachelTabular(prepare_data=args.prepare_data)
 
 if args.train:
     rachel.train(args.epochs, args.lr, args.wd)
+
+if args.humanize:
+    rachel.humanize(args.humanize)
