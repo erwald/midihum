@@ -156,7 +156,11 @@ def midi_file_to_data_frame(midi_file, quantization=4):
             currently_playing_notes.remove(note_on)
 
             sustain_duration = time - note_on_time
-            assert sustain_duration > 0, 'Encountered note sustained for a duration of 0'
+
+            # If we get a note with a 0 sustain duration, use the duration of
+            # the previous note.
+            if sustain_duration == 0:
+                sustain_duration = result[-1][16]
 
             # Get the average pitch of all notes currently being played.
             curr_pitches = [p for p, _, _ in currently_playing_notes] + [pitch]
