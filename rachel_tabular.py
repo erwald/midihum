@@ -84,7 +84,7 @@ class RachelTabular:
 
         # Normalise output.
         self.midi_df['velocity'] = preprocessing.minmax_scale(
-            self.midi_df.velocity.values, feature_range=(0, 1))
+            np.asfarray(self.midi_df.velocity.values), feature_range=(0, 1))
 
         follows_pause_names = self.get_column_names_matching(
             self.midi_df, 'follows_pause')
