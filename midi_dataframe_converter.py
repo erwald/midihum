@@ -256,12 +256,13 @@ def add_engineered_features(df):
     for col in ['pitch_class', 'octave', 'follows_pause', 'chord_character', 'chord_size']:
         for i in range(1, 11):
             new_col = '{}_lag_{}'.format(col, i)
-            df[new_col] = df[col].shift(i).fillna(method='backfill')
+            df[new_col] = df[col].shift(i).fillna(
+                method='backfill').astype(df[col].dtype)
 
         for i in range(1, 11):
             new_col = '{}_fwd_lag_{}'.format(col, i)
             df[new_col] = df[col][::-
-                                  1].shift(i).fillna(method='backfill')[::-1]
+                                  1].shift(i).fillna(method='backfill')[::-1].astype(df[col].dtype)
 
     # Create some averages.
     df['mean_sustain'] = df.sustain.mean()
