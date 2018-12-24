@@ -37,6 +37,8 @@ class RachelTabular:
         self.learn = self.create_learner()
 
     def prepare_data(self):
+        print('Preparing data ...')
+
         midi_data_filepaths = get_files(midi_data_valid_path, ['.mid', '.MID'])
 
         train_filepaths, validate_filepaths = train_test_split(
@@ -63,6 +65,8 @@ class RachelTabular:
         return train_df, validate_df
 
     def load_data(self):
+        print('Loading data ...')
+
         train_df = pd.read_csv(os.path.join(
             self.data_folder, self.train_data_path))
         validate_df = pd.read_csv(os.path.join(
@@ -71,7 +75,10 @@ class RachelTabular:
         return train_df, validate_df
 
     def create_learner(self):
-        # Split combined data into train and validate sets (tracking indices only).
+        print('Creating learner ...')
+
+        # Split combined data into train and validate sets (tracking indices
+        # only).
         valid_idx = range(len(self.midi_df) -
                           len(self.validate_df), len(self.midi_df))
 
@@ -145,7 +152,7 @@ class RachelTabular:
         # learn.recorder.plot_losses()
 
         # Save the model.
-        print('Saving model')
+        print('Saving model ...')
         self.learn.save(self.model_name)
 
         self.predict_validation_data()
