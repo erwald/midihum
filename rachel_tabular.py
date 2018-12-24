@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 import torch
+import re
 from fastai import *
 from fastai.imports import *
 from fastai.basic_train import *
@@ -86,13 +87,14 @@ class RachelTabular:
         self.midi_df['velocity'] = preprocessing.minmax_scale(
             np.asfarray(self.midi_df.velocity.values), feature_range=(0, 1))
 
+        # Define names of categorical columns (including lags and excluding non-
+        # categorical columns such as "time elapsed since X").
         follows_pause_names = self.get_column_names_matching(
-            self.midi_df, 'follows_pause')
+            self.midi_df, 'follows_pause(_pressed|\_(lag|fwd_lag)\_\d)?')
         chord_character_names = self.get_column_names_matching(
-            self.midi_df, 'chord_character')
+            self.midi_df, '^chord_character(_pressed|\_(lag|fwd_lag)\_\d)?')
         chord_size_names = self.get_column_names_matching(
-            self.midi_df, 'chord_size')
-
+            self.midi_df, '^chord_size(_pressed|\_(lag|fwd_lag)\_\d)?')
         category_names = (['pitch_class'] + follows_pause_names +
                           chord_character_names + chord_size_names)
         continuous_names = [cat for cat in self.midi_df.columns if (
@@ -170,7 +172,7 @@ class RachelTabular:
         tabular_plotter.plot_predictions(prediction_df)
 
     def get_column_names_matching(self, df, pattern):
-        '''Given a data frame and a string pattern, returns all the column names in
-        the data frame containing the string.
+        '''Given a data frame and a string regex pattern, returns all the column
+        names in the data frame containing the string.
         '''
-        return [cat for cat in df.columns if pattern in cat]
+        return [col for col in df.columns if re.match(pattern, col)]
