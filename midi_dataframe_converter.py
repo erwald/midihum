@@ -21,7 +21,7 @@ def midi_files_to_data_frame(midi_filepaths):
     skipped_count = 0
 
     for midi_filepath in midi_filepaths:
-        print('Converting {} to data frame'.format(midi_filepath))
+        print(f'Converting {midi_filepath} to data frame')
         midi_file = MidiFile(midi_filepath)
 
         try:
@@ -54,8 +54,9 @@ def midi_files_to_data_frame(midi_filepaths):
 
     combined_df = pd.concat(dfs)
 
-    print('\nConverted {} files out of {} to data frames'.format(
-        processed_count, processed_count + skipped_count))
+    total_count = processed_count + skipped_count
+    print(
+        f'\nConverted {processed_count} files out of {total_count} to data frames')
 
     return combined_df
 
@@ -149,8 +150,8 @@ def midi_file_to_data_frame(midi_file, quantization=4):
             currently_playing_notes.append((pitch, time, note_on_data))
         elif (msg_type == 'note_off' or (msg_type == 'note_on' and velocity == 0)):
             if not (any(p == pitch for p, _, _ in currently_playing_notes)):
-                print('Warning: encountered {} event with velocity {} for pitch that has not been played'.format(
-                    msg_type, velocity))
+                print(
+                    f'Warning: encountered {msg_type} event with velocity {velocity} for pitch that has not been played')
                 continue
 
             note_on = _, note_on_time, note_on_data = next(
@@ -229,7 +230,7 @@ def add_engineered_features(df):
     # Get time elapsed since various further events. Since some of these happen
     # rather rarely (resulting in some very large values), we also normalise.
     for cat in ['pitch_class', 'octave', 'follows_pause', 'chord_character', 'chord_size']:
-        new_cat = 'time_since_{}'.format(cat)
+        new_cat = f'time_since_{cat}'
         df[new_cat] = preprocessing.scale(
             (df.time - df.groupby(cat)['time'].shift()).fillna(0).values)
 
@@ -248,22 +249,22 @@ def add_engineered_features(df):
     for col in ['interval_from_released', 'interval_from_pressed',
                 'time_since_last_pressed', 'time_since_last_released']:
         for i in range(1, 6):
-            new_col = '{}_lag_{}'.format(col, i)
+            new_col = f'{col}_lag_{i}'
             df[new_col] = df[col].rolling(i).sum().fillna(0)
 
         for i in range(1, 6):
-            new_col = '{}_fwd_lag_{}'.format(col, i)
+            new_col = f'{col}_fwd_lag_{i}'
             df[new_col] = df[col][::-1].rolling(i).sum().fillna(0)[::-1]
 
     # Calculate lag values (just taking the values of the previous/next rows).
     for col in ['pitch_class', 'octave', 'follows_pause', 'chord_character', 'chord_size']:
         for i in range(1, 11):
-            new_col = '{}_lag_{}'.format(col, i)
+            new_col = f'{col}_lag_{i}'
             df[new_col] = df[col].shift(i).fillna(
                 method='backfill').astype(df[col].dtype)
 
         for i in range(1, 11):
-            new_col = '{}_fwd_lag_{}'.format(col, i)
+            new_col = f'{col}_fwd_lag_{i}'
             df[new_col] = df[col][::-
                                   1].shift(i).fillna(method='backfill')[::-1].astype(df[col].dtype)
 
@@ -297,12 +298,10 @@ def add_rolling_column(df, col, aggregator=pd.core.window.Rolling.mean, is_forwa
     windows = [3, 5, 20]
     for window in windows:
         if not is_forward:
-            new_col = '{}_rolling_{}_{}'.format(
-                col, aggregator.__name__, window)
+            new_col = f'{col}_rolling_{aggregator.__name__}_{window}'
             df[new_col] = aggregator(df[col].rolling(
                 window)).fillna(method='backfill')
         else:
-            new_col = '{}_fwd_rolling_{}_{}'.format(
-                col, aggregator.__name__, window)
+            new_col = f'{col}_fwd_rolling_{aggregator.__name__}_{window}'
             df[new_col] = aggregator(df[col][::-1].rolling(
                 window)).fillna(method='backfill')[::-1]

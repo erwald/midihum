@@ -40,35 +40,35 @@ def plot_data(df):
     for col in cat_names:
         plot = sns.boxplot(x=col, y='velocity', data=df)
         plot.get_figure().savefig(os.path.join(
-            model_output_dir, 'boxplot_{}.png'.format(col)))
+            model_output_dir, f'boxplot_{col}.png'))
         plt.clf()
 
     # Count plots.
     for col in cat_names:
         plot = sns.countplot(x=col, palette='rocket', data=df)
         plot.get_figure().savefig(os.path.join(
-            model_output_dir, 'countplot_{}.png'.format(col)))
+            model_output_dir, f'countplot_{col}.png'))
         plt.clf()
 
     # Distribution plots.
     for col in cont_names:
         plot = sns.distplot(df[col])
         plot.get_figure().savefig(os.path.join(
-            model_output_dir, 'distplot_{}.png'.format(col)))
+            model_output_dir, f'distplot_{col}.png'))
         plt.clf()
 
     # Bar plots for categorical values against velocity.
     for col in cat_names:
         plot = sns.barplot(x=df[col], y=df.velocity, palette='rocket')
         plot.get_figure().savefig(os.path.join(
-            model_output_dir, 'barplot_{}_vs_velocity.png'.format(col)))
+            model_output_dir, f'barplot_{col}_vs_velocity.png'))
         plt.clf()
 
     # Hex + dist plots for continuous names against velocity.
     for col in [name for name in cont_names if name != 'velocity']:
         plot = sns.jointplot(x=col, y='velocity', data=df, kind='hex')
         plot.savefig(os.path.join(model_output_dir,
-                                  'hexplot_{}_vs_velocity.png'.format(col)))
+                                  f'hexplot_{col}_vs_velocity.png'))
         plt.clf()
 
     plt.subplots(figsize=(30, 30))
