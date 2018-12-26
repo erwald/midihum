@@ -7,6 +7,7 @@ from sklearn import metrics, preprocessing
 
 from midi_utility import quantize, get_note_tracks
 from chord_identifier import chord_attributes
+from tqdm import tqdm
 
 
 def midi_files_to_data_frame(midi_filepaths):
@@ -20,8 +21,9 @@ def midi_files_to_data_frame(midi_filepaths):
     processed_count = 0
     skipped_count = 0
 
-    for midi_filepath in midi_filepaths:
-        print(f'Converting {midi_filepath} to data frame')
+    pbar = tqdm(midi_filepaths)
+    for midi_filepath in pbar:
+        pbar.set_description(f'Converting {midi_filepath} to data frame')
         midi_file = MidiFile(midi_filepath)
 
         try:
@@ -46,7 +48,7 @@ def midi_files_to_data_frame(midi_filepaths):
 
             dfs.append(df)
         except Exception as e:
-            print('Exception converting MIDI to data frame:', e)
+            tqdm.write(f'Exception converting MIDI to data frame: {e}')
             skipped_count += 1
             continue
 
@@ -150,7 +152,7 @@ def midi_file_to_data_frame(midi_file, quantization=4):
             currently_playing_notes.append((pitch, time, note_on_data))
         elif (msg_type == 'note_off' or (msg_type == 'note_on' and velocity == 0)):
             if not (any(p == pitch for p, _, _ in currently_playing_notes)):
-                print(
+                tqdm.write(
                     f'Warning: encountered {msg_type} event with velocity {velocity} for pitch that has not been played')
                 continue
 
