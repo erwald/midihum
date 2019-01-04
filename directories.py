@@ -1,17 +1,10 @@
 import os
 
-# Data
+# Data.
 midi_data_path = 'midi_data'
 midi_data_valid_path = 'midi_data_valid'
 midi_data_valid_repaired_path = 'midi_data_valid_repaired'
 midi_data_valid_quantized_path = 'midi_data_valid_quantized'
-
-# Model.
-model_dir = 'models'
-
-# Input (for predictions).
-predictables_dir = 'input'
-predictables_valid_dir = 'input_valid'
 
 # Artefacts.
 output_dir = 'output'
@@ -24,7 +17,6 @@ def create_directories():
             midi_data_valid_path,
             midi_data_valid_repaired_path,
             midi_data_valid_quantized_path,
-            model_dir,
             output_dir,
             model_output_dir,
             baseline_output_dir]
