@@ -99,5 +99,5 @@ def plot_predictions(df):
     # Relationship between predictions and targets.
     plot = sns.relplot(x='target', y='prediction', col='name', hue='error',
                        col_wrap=5, data=df)
-    plot.set(xlim=(0, 1), ylim=(0, 1))
+    plot.set(xlim=(-1, 1), ylim=(-1, 1))
     plot.savefig(os.path.join(model_output_dir, 'predictions.png'))

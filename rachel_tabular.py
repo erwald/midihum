@@ -50,16 +50,20 @@ class RachelTabular:
         validate_df = midi_files_to_data_frame(
             midi_filepaths=validate_filepaths)
 
-        train_df.to_csv(os.path.join(
-            self.data_folder, self.train_data_path), index=False)
+        processed_file_count = len(train_df) + len(validate_df)
+        print(f'Processed {processed_file_count} files; now saving ...')
+
+        train_df.to_csv(os.path.join(self.data_folder,
+                                     self.train_data_path), index=False, encoding='utf-8')
         validate_df.to_csv(os.path.join(
-            self.data_folder, self.validate_data_path), index=False)
+            self.data_folder, self.validate_data_path), index=False, encoding='utf-8')
 
         # Print some info about the created / loaded training data.
         print('Train shape:', train_df.shape)
         print('Train head:\n', train_df.head())
         print('Train tail:\n', train_df.tail())
-        print('Train correlations:\n', train_df.corr())
+        print('Train velocity correlations:\n',
+              train_df.corr().velocity.sort_values(ascending=False))
 
         # Plot some visualisations of the training set.
         tabular_plotter.plot_data(train_df)
@@ -70,9 +74,9 @@ class RachelTabular:
         print('Loading data ...')
 
         train_df = pd.read_csv(os.path.join(
-            self.data_folder, self.train_data_path))
+            self.data_folder, self.train_data_path), encoding='utf-8')
         validate_df = pd.read_csv(os.path.join(
-            self.data_folder, self.validate_data_path))
+            self.data_folder, self.validate_data_path), encoding='utf-8')
 
         return train_df, validate_df
 
@@ -84,18 +88,18 @@ class RachelTabular:
         valid_idx = range(len(self.midi_df) -
                           len(self.validate_df), len(self.midi_df))
 
-        # Normalise output.
+        # Scale output.
         self.midi_df['velocity'] = preprocessing.minmax_scale(
-            np.asfarray(self.midi_df.velocity.values), feature_range=(0, 1))
+            np.asfarray(self.midi_df.velocity.values), feature_range=(-1, 1))
 
         # Define names of categorical columns (including lags and excluding non-
         # categorical columns such as "time elapsed since X").
         follows_pause_names = self.get_column_names_matching(
             self.midi_df, 'follows_pause(_pressed|\_(lag|fwd_lag)\_\d)?')
         chord_character_names = self.get_column_names_matching(
-            self.midi_df, '^chord_character(_pressed|\_(lag|fwd_lag)\_\d)?')
+            self.midi_df, '^chord_character(?!_occur)(_pressed|\_(lag|fwd_lag)\_\d)?')
         chord_size_names = self.get_column_names_matching(
-            self.midi_df, '^chord_size(_pressed|\_(lag|fwd_lag)\_\d)?')
+            self.midi_df, '^chord_size(?!_occur)(_pressed|\_(lag|fwd_lag)\_\d)?')
         category_names = (['pitch_class'] + follows_pause_names +
                           chord_character_names + chord_size_names)
 
@@ -107,39 +111,24 @@ class RachelTabular:
 
         dep_var = 'velocity'
 
-        procs = [Categorify, Normalize]
         data = (TabularList.from_df(self.midi_df,
                                     path=self.data_folder,
                                     cat_names=category_names,
                                     cont_names=continuous_names,
-                                    procs=procs)
+                                    procs=[FillMissing, Categorify, Normalize])
                 .split_by_idx(valid_idx)
                 .label_from_df(cols=dep_var, label_cls=FloatList)
                 .databunch())
 
-        # For each category, use an embedding size of half of the # of possible
-        # values.
-        follows_pause_szs = dict([(name, 2) for name in follows_pause_names])
-        chord_character_szs = dict([(name, 6)
-                                    for name in chord_character_names])
-        chord_size_szs = dict([(name, 7) for name in chord_size_names])
-        category_szs = {'pitch_class': 12,
-                        'follows_pause': 2,
-                        **follows_pause_szs,
-                        **chord_character_szs,
-                        **chord_size_szs}
-        emb_szs = {k: (v + 1) // 2 for k, v in category_szs.items()}
-
         # Create a range between which all of our output values should be. (We
         # set the upper bound to 1.2 because of the last layer being a sigmoid,
         # meaning it is very unlikely to reach the extremes.)
-        y_range = torch.tensor([0, 1.2], device=defaults.device)
+        y_range = torch.tensor([-1.2, 1.2], device=defaults.device)
 
         learn = tabular_learner(data,
                                 layers=[1000, 500],
-                                emb_szs=emb_szs,
-                                ps=[0.2, 0.5],
-                                emb_drop=0.1,
+                                ps=[1e-2, 1e-1],
+                                emb_drop=0.04,
                                 y_range=y_range,
                                 metrics=exp_rmspe)
 
@@ -153,13 +142,7 @@ class RachelTabular:
         return learn
 
     def train(self, epochs, lr, wd):
-        # learn.lr_find()
-        # learn.recorder.plot()
-
         self.learn.fit_one_cycle(epochs, lr, wd=wd)
-
-        # learn.show_results()
-        # learn.recorder.plot_losses()
 
         # Save the model.
         print('Saving model ...')
@@ -194,7 +177,7 @@ class RachelTabular:
         # Load input MIDI file and, for each prediction, set the new velocity.
         midi_file = MidiFile(midi_filepath)
         for _, row in df.iterrows():
-            velocity = min(round(row.prediction * 127), 127)
+            velocity = max(min(round((row.prediction + 1) / 2 * 127), 127), 0)
             midi_file.tracks[row.midi_track_index][row.midi_event_index].velocity = velocity
 
         # Save the MIDI file with the new velocities to the output directory.

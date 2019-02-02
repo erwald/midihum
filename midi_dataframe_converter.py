@@ -237,26 +237,32 @@ def add_engineered_features(df):
             (df.time - df.groupby(cat)['time'].shift()).fillna(0).values)
 
     # Calculate some rolling means.
-    for col in ['pitch', 'octave', 'sustain']:
-        add_rolling_column(df, col)
-        add_rolling_column(df, col, is_forward=True)
+    rolling_aggs = {'pitch': ['mean', 'min', 'max', 'std'],
+                    'sustain': ['mean', 'min', 'max', 'std'],
+                    'num_played_notes_pressed': ['mean', 'min', 'max', 'std'],
+                    'num_played_notes_released': ['mean', 'min', 'max', 'std'],
+                    'interval_from_released': ['mean', 'min', 'max', 'std'],
+                    'interval_from_pressed': ['mean', 'min', 'max', 'std'],
+                    'time_since_last_pressed': ['mean', 'min', 'max', 'std'],
+                    'time_since_last_released': ['mean', 'min', 'max', 'std']}
+    for n in [3, 10, 50]:
+        rolled = df.rolling(n).agg(rolling_aggs).fillna(method='backfill')
+        fwd_rolled = df[::-
+                        1].rolling(n).agg(rolling_aggs).fillna(method='backfill')[::-1]
+        for col, funcs in rolling_aggs.items():
+            for f in funcs:
+                df[f'{col}_roll_{f}_{n}'] = rolled[col][f]
+                df[f'{col}_fwd_roll_{f}_{n}'] = fwd_rolled[col][f]
 
-    # Calculate some rolling sums.
-    for col in ['sustain', 'num_played_notes_pressed', 'num_played_notes_released']:
-        add_rolling_column(df, col, aggregator=pd.core.window.Rolling.sum)
-        add_rolling_column(
-            df, col, aggregator=pd.core.window.Rolling.sum, is_forward=True)
-
-    # Calculate lag values (calculated by summing).
+    # Calculate lag values (by summing).
     for col in ['interval_from_released', 'interval_from_pressed',
                 'time_since_last_pressed', 'time_since_last_released']:
         for i in range(1, 6):
             new_col = f'{col}_lag_{i}'
             df[new_col] = df[col].rolling(i).sum().fillna(0)
 
-        for i in range(1, 6):
-            new_col = f'{col}_fwd_lag_{i}'
-            df[new_col] = df[col][::-1].rolling(i).sum().fillna(0)[::-1]
+            new_fwd_col = f'{col}_fwd_lag_{i}'
+            df[new_fwd_col] = df[col][::-1].rolling(i).sum().fillna(0)[::-1]
 
     # Calculate lag values (just taking the values of the previous/next rows).
     for col in ['pitch_class', 'octave', 'follows_pause', 'chord_character', 'chord_size']:
@@ -265,20 +271,25 @@ def add_engineered_features(df):
             df[new_col] = df[col].shift(i).fillna(
                 method='backfill').astype(df[col].dtype)
 
-        for i in range(1, 11):
-            new_col = f'{col}_fwd_lag_{i}'
-            df[new_col] = df[col][::-
-                                  1].shift(i).fillna(method='backfill')[::-1].astype(df[col].dtype)
+            new_fwd_col = f'{col}_fwd_lag_{i}'
+            df[new_fwd_col] = df[col][::-
+                                      1].shift(i).fillna(method='backfill')[::-1].astype(df[col].dtype)
 
-    # Create some averages.
-    df['mean_sustain'] = df.sustain.mean()
-    df['sustain_adj_by_mean'] = df.sustain / df.mean_sustain
+    # Get some aggregate data of the song as a whole.
+    aggregators = {'pitch': ['sum', 'mean', 'min', 'max', 'std'],
+                   'sustain': ['sum', 'mean', 'min', 'max', 'std'],
+                   'pitch_class': ['nunique']}
+    aggregated = df.agg(aggregators)
+    for col, funcs in aggregators.items():
+        for f in funcs:
+            df[f'{col}_{f}'] = aggregated[col][f]
+
+    df['sustain_adj_by_mean'] = df.sustain / df.sustain_mean
 
     # Count occurrences of some categorical or category-like values.
     df['pitch_class_occur_count'] = df.groupby(
         'pitch_class').pitch_class.transform('count')
-    df['octave_occur_count'] = df.groupby(
-        'octave').octave.transform('count')
+    df['octave_occur_count'] = df.groupby('octave').octave.transform('count')
     df['chord_character_occur_count'] = df.groupby(
         'chord_character').chord_character.transform('count')
     df['chord_size_occur_count'] = df.groupby(
@@ -290,20 +301,3 @@ def add_engineered_features(df):
 
     # Total number of notes divided by duration of song.
     df['note_count_adj_by_dur'] = len(df) / df.song_duration[0]
-
-
-def add_rolling_column(df, col, aggregator=pd.core.window.Rolling.mean, is_forward=False):
-    '''Takes a data frame and the name of a column in that data frame, and then
-    adds 6 new columns with rolling means/sums (depending on given aggregator
-    function) for that column (3 going backward and 3 forward).
-    '''
-    windows = [3, 5, 20]
-    for window in windows:
-        if not is_forward:
-            new_col = f'{col}_rolling_{aggregator.__name__}_{window}'
-            df[new_col] = aggregator(df[col].rolling(
-                window)).fillna(method='backfill')
-        else:
-            new_col = f'{col}_fwd_rolling_{aggregator.__name__}_{window}'
-            df[new_col] = aggregator(df[col][::-1].rolling(
-                window)).fillna(method='backfill')[::-1]
