@@ -177,7 +177,7 @@ class RachelTabular:
         # Load input MIDI file and, for each prediction, set the new velocity.
         midi_file = MidiFile(midi_filepath)
         for _, row in df.iterrows():
-            velocity = max(min(round((row.prediction + 1) / 2 * 127), 127), 0)
+            velocity = max(min(round((row.prediction + 1) / 2 * 127), 127), 1)
             midi_file.tracks[row.midi_track_index][row.midi_event_index].velocity = velocity
 
         # Save the MIDI file with the new velocities to the output directory.
