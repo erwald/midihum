@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import os
-import pretty_midi
 from mido import Message, MetaMessage, MidiFile, MidiTrack
 from sklearn import metrics, preprocessing
 
@@ -78,7 +77,7 @@ def midi_file_to_data_frame(midi_file, quantization=4):
 
     result = []
 
-    note_event_tracks = [(track_idx, note_events_for_track(track=track, quantization=quantization))
+    note_event_tracks = [(track_idx, note_events_for_track(track=track))
                          for track_idx, track in get_note_tracks(midi_file)]
     note_events = [(event, event_idx, track_idx)
                    for track_idx, track in note_event_tracks for event_idx, event in track]
@@ -193,7 +192,7 @@ def midi_file_to_data_frame(midi_file, quantization=4):
     return df
 
 
-def note_events_for_track(track, quantization):
+def note_events_for_track(track):
     '''Takes a track and returns a list of notes in the track, as
     represented by a tuple of (cumulative) time, note type ('on' or 'off'),
     pitch value and velocity.
