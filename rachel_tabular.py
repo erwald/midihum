@@ -1,192 +1,153 @@
+import os
+from pathlib import Path
+from typing import List, Optional, Tuple
+
+import click
+from fastai.metrics import rmse, exp_rmspe
+from fastai.tabular.core import Categorify, FillMissing, Normalize
+from fastai.tabular.data import TabularDataLoaders
+from fastai.tabular.learner import tabular_learner, load_learner
+from mido import MidiFile
+from sklearn import preprocessing
 import numpy as np
 import pandas as pd
-import os
-import torch
-import re
-from fastai import *
-from fastai.imports import *
-from fastai.basic_train import *
-from fastai.tabular import *
-from fastai.metrics import *
-from fastai.data_block import *
-from sklearn.model_selection import train_test_split
-from sklearn import metrics, preprocessing
-from mido import MidiFile
 
-from directories import *
-from midi_dataframe_converter import midi_files_to_data_frame
+from midi_to_df_conversion import midi_files_to_df
+from prepare_midi import load_data
 import tabular_plotter
 
 
 class RachelTabular:
-    '''A tabular neural network for predicting velocities of MIDI files.
-    '''
+    """A tabular neural network for predicting velocities of MIDI files.
+    """
+    model_dir = Path("model_cache")
 
-    def __init__(self, prepare_data):
-        '''Initialisation.'''
-        self.train_data_path = 'train_data.csv'
-        self.validate_data_path = 'validate_data.csv'
-        self.data_folder = './data'
-        self.model_name = 'tabular_model'
-
-        # Load data.
-        if prepare_data:
-            self.train_df, self.validate_df = self.prepare_data()
+    def __init__(
+            self, name: str = "rachel", data_dir: Path = Path("dfs"), layers: Optional[List[int]] = None,
+            predict_only: bool = False):
+        self.model_filename = Path(f"{name}.pickle")
+        if not predict_only:
+            self.train_df, self.validate_df = load_data(data_dir)
         else:
-            self.train_df, self.validate_df = self.load_data()
-        self.midi_df = pd.concat([self.train_df, self.validate_df])
+            self.train_df = None
+            self.validate_df = None
 
-        self.learn = self.create_learner()
+        os.makedirs(self.model_dir, exist_ok=True)
+        self._create_learner(layers=layers, include_data=(not predict_only))
 
-    def prepare_data(self):
-        print('Preparing data ...')
+    def _save_model(self):
+        click.echo(f"rachel_tabular saving model to {self.model_filename}")
+        self.learn.export(self.model_filename)
 
-        midi_data_filepaths = get_files(midi_data_valid_path, ['.mid', '.MID'])
+    def _load_model_if_exists(self) -> bool:
+        path = self.model_dir / self.model_filename
+        if path.exists():
+            click.echo(f"rachel_tabular loading model from {path}")
+            self.learn = load_learner(path)
+            return True
+        click.echo(f"rachel_tabular couldn't find model at {path}")
+        return False
 
-        train_filepaths, validate_filepaths = train_test_split(
-            midi_data_filepaths, test_size=0.1, random_state=1988)
+    @staticmethod
+    def _get_column_names_from_df(df: pd.DataFrame) -> Tuple[List[str], List[str]]:
+        columns_to_skip = ["velocity", "time", "midi_track_index", "midi_event_index", "name"]
+        category_names = [
+            col for col in df.columns if not pd.api.types.is_numeric_dtype(df[col]) and col not in columns_to_skip]
+        continuous_names = [col for col in df.columns if col not in category_names + columns_to_skip]
+        return (category_names, continuous_names)
 
-        train_df = midi_files_to_data_frame(midi_filepaths=train_filepaths)
-        validate_df = midi_files_to_data_frame(
-            midi_filepaths=validate_filepaths)
+    def _create_data_loaders(self) -> TabularDataLoaders:
+        click.echo("rachel_tabular creating data loaders")
 
-        processed_file_count = len(train_df) + len(validate_df)
-        print(f'Processed {processed_file_count} files; now saving ...')
+        self.train_df.velocity = \
+            preprocessing.minmax_scale(np.asfarray(self.train_df.velocity.values), feature_range=(-1, 1))
+        self.validate_df.velocity = \
+            preprocessing.minmax_scale(np.asfarray(self.validate_df.velocity.values), feature_range=(-1, 1))
 
-        train_df.to_csv(os.path.join(self.data_folder,
-                                     self.train_data_path), index=False, encoding='utf-8')
-        validate_df.to_csv(os.path.join(
-            self.data_folder, self.validate_data_path), index=False, encoding='utf-8')
+        df = pd.concat([self.train_df, self.validate_df])
+        category_names, continuous_names = self._get_column_names_from_df(self.train_df)
+        return TabularDataLoaders.from_df(
+            df=df, path=str(self.model_dir), procs=[Categorify, FillMissing, Normalize], cat_names=category_names,
+            cont_names=continuous_names, y_names="velocity", valid_idx=list(range(len(self.train_df), len(df))), bs=64)
 
-        # Print some info about the created / loaded training data.
-        print('Train shape:', train_df.shape)
-        print('Train head:\n', train_df.head())
-        print('Train tail:\n', train_df.tail())
-        print('Train velocity correlations:\n',
-              train_df.corr().velocity.sort_values(ascending=False))
+    def _create_learner(self, layers: Optional[List[int]], include_data: bool):
+        click.echo(f"rachel_tabular creating learner with layers={layers} and include_data={include_data}")
+        if not include_data and self._load_model_if_exists():
+            return
 
-        # Plot some visualisations of the training set.
-        tabular_plotter.plot_data(train_df)
+        assert include_data, "couldn't find cached model"
+        assert layers, layers
+        dls = self._create_data_loaders()
+        # set y_range to slightly more than (-1, 1) because the last layer is a sigmoid, meaning it's unlikely to reach
+        # the extremes.
+        self.learn = tabular_learner(dls=dls, layers=layers, y_range=(-1.2, 1.2), metrics=[rmse, exp_rmspe])
 
-        return train_df, validate_df
+    def train(
+            self, epochs: int = 3, lr: float = 0.001, wd: float = 0.7, plot_dir: Optional[Path] = None,
+            save_model: bool = True):
+        click.echo(f"rachel_tabular training for {epochs} epochs with learning rate {lr} and weight decay {wd}")
+        self.learn.fit(epochs, lr=lr, wd=wd)
+        if save_model:
+            self._save_model()
+        if plot_dir:
+            self.predict_validation_data(plot_dir)
 
-    def load_data(self):
-        print('Loading data ...')
+    @staticmethod
+    def _rescale_predictions(preds: pd.Series) -> pd.Series:
+        return (preds - preds.mean()) / (preds.std() * 2.5) # not sure why 2.5, it just seems to work well ...
 
-        train_df = pd.read_csv(os.path.join(
-            self.data_folder, self.train_data_path), encoding='utf-8')
-        validate_df = pd.read_csv(os.path.join(
-            self.data_folder, self.validate_data_path), encoding='utf-8')
+    def predict_validation_data(self, plot_dir: Path) -> pd.DataFrame:
+        assert self.train_df is not None, self.train_df
+        assert self.validate_df is not None, self.validate_df
+        self.learn.dls.test_dl(self.validate_df)
+        predictions, targets = [x.numpy().flatten() for x in self.learn.get_preds()]
+        prediction_df = pd.DataFrame({"name": self.validate_df.name, "prediction": predictions, "target": targets})
+        prediction_df = prediction_df.reset_index(drop=True)
+        prediction_df["adjusted_prediction"] = \
+            prediction_df.groupby("name") \
+                         .apply(lambda g: self._rescale_predictions(g.prediction)) \
+                         .reset_index("name", drop=True)
 
-        return train_df, validate_df
+        prediction_df["error"] = (prediction_df.target - prediction_df.prediction).abs()
+        prediction_df["adjusted_error"] = (prediction_df.target - prediction_df.adjusted_prediction).abs()
 
-    def create_learner(self):
-        print('Creating learner ...')
+        click.echo(f"prediction range: {(np.amin(predictions), np.amax(predictions))}")
+        click.echo(f"predictions:\n{prediction_df.head()}")
+        click.echo("prediction-target correlations:")
+        for name in prediction_df.name.unique():
+            song_df = prediction_df[prediction_df.name == name]
+            correlation = song_df.prediction.corr(song_df.target)
+            adjusted_correlation = song_df.adjusted_prediction.corr(song_df.target)
+            click.echo(f"{name}: {correlation} (normal), {adjusted_correlation} (adjusted)")
+        total_adjusted_correlation = prediction_df.adjusted_prediction.corr(prediction_df.target)
+        click.echo(f"total (adjusted) prediction-target correlation: {total_adjusted_correlation}")
+        tabular_plotter.plot_predictions(prediction_df, plot_dir)
 
-        # Split combined data into train and validate sets (tracking indices
-        # only).
-        valid_idx = range(len(self.midi_df) -
-                          len(self.validate_df), len(self.midi_df))
+        return prediction_df
 
-        # Scale output.
-        self.midi_df['velocity'] = preprocessing.minmax_scale(
-            np.asfarray(self.midi_df.velocity.values), feature_range=(-1, 1))
+    def humanize(self, source_path: Path, destination_path: Path, rescale: bool = True) -> List[float]:
+        click.echo(f"rachel_tabular humanizing {source_path}")
+        df = midi_files_to_df(midi_filepaths=[source_path], skip_suspicious=False)
+        df = df.drop("velocity", axis=1)
+        click.echo(f"input shape: {df.shape}")
 
-        # Define names of categorical columns (including lags and excluding non-
-        # categorical columns such as "time elapsed since X").
-        follows_pause_names = self.get_column_names_matching(
-            self.midi_df, 'follows_pause(_pressed|\_(lag|fwd_lag)\_\d)?')
-        chord_character_names = self.get_column_names_matching(
-            self.midi_df, '^chord_character(?!_occur)(_pressed|\_(lag|fwd_lag)\_\d)?')
-        chord_size_names = self.get_column_names_matching(
-            self.midi_df, '^chord_size(?!_occur)(_pressed|\_(lag|fwd_lag)\_\d)?')
-        category_names = (['pitch_class'] + follows_pause_names +
-                          chord_character_names + chord_size_names)
+        # make velocity predictions for each row (note on) of the input
+        dl = self.learn.dls.test_dl(df)
+        df["prediction"] = self.learn.get_preds(dl=dl)[0].numpy().flatten()
+        if rescale:
+            df.prediction = self._rescale_predictions(df.prediction)
 
-        # Define names of continuous columns.
-        columns_to_skip = ['velocity', 'time',
-                           'midi_track_index', 'midi_event_index', 'name']
-        continuous_names = [cat for cat in self.midi_df.columns if (
-            cat not in category_names + columns_to_skip)]
+        min_velocity = df.prediction.min()
+        max_velocity = df.prediction.max()
+        click.echo(f"rachel_tabular got {df.count()[0]} velocities in range ({min_velocity} ... {max_velocity})")
 
-        dep_var = 'velocity'
-
-        data = (TabularList.from_df(self.midi_df,
-                                    path=self.data_folder,
-                                    cat_names=category_names,
-                                    cont_names=continuous_names,
-                                    procs=[FillMissing, Categorify, Normalize])
-                .split_by_idx(valid_idx)
-                .label_from_df(cols=dep_var, label_cls=FloatList)
-                .databunch())
-
-        # Create a range between which all of our output values should be. (We
-        # set the upper bound to 1.2 because of the last layer being a sigmoid,
-        # meaning it is very unlikely to reach the extremes.)
-        y_range = torch.tensor([-1.2, 1.2], device=defaults.device)
-
-        learn = tabular_learner(data,
-                                layers=[1000, 500],
-                                ps=[1e-2, 1e-1],
-                                emb_drop=0.04,
-                                y_range=y_range,
-                                metrics=exp_rmspe)
-
-        # Load the existing model if there is one.
-        model_path = os.path.join(
-            self.data_folder, 'models', self.model_name + '.pth')
-        if os.path.isfile(model_path):
-            print(f'Loading saved model from {model_path} ...')
-            learn.load(self.model_name)
-
-        return learn
-
-    def train(self, epochs, lr, wd):
-        self.learn.fit_one_cycle(epochs, lr, wd=wd)
-
-        # Save the model.
-        print('Saving model ...')
-        self.learn.save(self.model_name)
-
-        self.predict_validation_data()
-
-    def predict_validation_data(self):
-        predictions, targets = [x.numpy().flatten()
-                                for x in self.learn.get_preds(DatasetType.Valid)]
-        prediction_df = pd.DataFrame(
-            {'name': self.validate_df.name, 'prediction': predictions, 'target': targets})
-        prediction_df['error'] = (prediction_df.target -
-                                  prediction_df.prediction).abs()
-        print('Prediction range:', (np.amin(predictions), np.amax(predictions)))
-        print('Predictions:', prediction_df.head())
-
-        tabular_plotter.plot_predictions(prediction_df)
-
-    def humanize(self, midi_filepath, quantization=4):
-        df = midi_files_to_data_frame(midi_filepaths=[midi_filepath])
-
-        # Print some information about the input data.
-        print('Input shape:', df.shape)
-        print('Input head:\n', df.head())
-        print('Input tail:\n', df.tail())
-
-        # Make velocity predictions for each row (note on) of the input.
-        df['prediction'] = [self.learn.predict(row)[2].numpy().flatten()[0]
-                            for _, row in df.iterrows()]
-
-        # Load input MIDI file and, for each prediction, set the new velocity.
-        midi_file = MidiFile(midi_filepath)
-        for _, row in df.iterrows():
-            velocity = max(min(round((row.prediction + 1) / 2 * 127), 127), 1)
+        # load input midi file and, for each prediction, set the new velocity
+        midi_file = MidiFile(source_path)
+        velocities = [max(1, min(127, round(((row.prediction + 1.0) / 2.0) * 127.0))) for _, row in df.iterrows()]
+        for row, velocity in zip(df.itertuples(), velocities):
             midi_file.tracks[row.midi_track_index][row.midi_event_index].velocity = velocity
 
-        # Save the MIDI file with the new velocities to the output directory.
-        out_path = os.path.join(output_dir, os.path.split(midi_filepath)[-1])
-        print(f'Saving humanized file to {out_path}')
-        midi_file.save(out_path)
+        click.echo(f"rachel_tabular saving humanized file to {destination_path}")
+        midi_file.save(destination_path)
 
-    def get_column_names_matching(self, df, pattern):
-        '''Given a data frame and a string regex pattern, returns all the column
-        names in the data frame containing the string.
-        '''
-        return [col for col in df.columns if re.match(pattern, col)]
+        return velocities

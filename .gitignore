@@ -107,18 +107,10 @@ venv.bak/
 
 .vscode
 
-data/
-input/
-input_valid/
-input_valid_inputs/
-input_valid_velocities/
+dfs/
 midi_data/
-midi_data_valid/
-midi_data_valid_repaired/
-midi_data_valid_quantized/
-midi_data_valid_quantized_inputs/
-midi_data_valid_quantized_velocities/
-output/
-output_model/
-output_baseline/
-models/
+midi_data_broken/
+midi_data_repaired_cache/
+model_cache/
+plots/
+archive/

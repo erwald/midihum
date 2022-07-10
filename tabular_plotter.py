@@ -1,103 +1,54 @@
-import numpy as np
+from pathlib import Path
+
+import click
 import pandas as pd
-import os
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from directories import *
+sns.set_theme(style="whitegrid", palette="Set3")
 
-sns.set()
+def plot_data(df: pd.DataFrame, output_dir: Path):
+    click.echo("tabular_plotter plotting data")
+    os.makedirs(output_dir, exist_ok=True)
 
+    categorical_cols = []
+    continuous_cols = []
+    for col in df.columns:
+        blacklist = ["_lag", "_sma", "_ewm", "_bollinger", "chikou", "tenkan", "kijun", "senkou", "cloud"]
+        if col in ["name", "midi_event_index", "midi_track_index"] or any(s in col for s in blacklist):
+            continue
+        if pd.api.types.is_numeric_dtype(df[col]):
+            continuous_cols.append(col)
+        else:
+            categorical_cols.append(col)
 
-def plot_data(df):
-    '''Produces various plots of the given data frame.
-    '''
-    print('Plotting data ...')
-
-    cat_names = ['pitch_class',
-                 'octave',
-                 'follows_pause',
-                 'chord_character_pressed',
-                 'chord_size_pressed',
-                 'chord_character',
-                 'chord_size']
-    cont_names = ['velocity',
-                  'pitch',
-                  'interval_from_pressed',
-                  'interval_from_released',
-                  'sustain',
-                  'time_since_last_pressed',
-                  'time_since_last_released',
-                  'time_since_pitch_class',
-                  'time_since_octave',
-                  'time_since_follows_pause',
-                  'time_since_chord_character',
-                  'time_since_chord_size',
-                  'chord_character_occur_count',
-                  'chord_size_occur_count']
-
-    # Box-and-whispers plots of categorical variables.
-    for col in cat_names:
-        plot = sns.boxplot(x=col, y='velocity', data=df)
-        plot.get_figure().savefig(os.path.join(
-            model_output_dir, f'boxplot_{col}.png'))
+    for col in categorical_cols:
+        plot = sns.boxplot(x=col, y="velocity", data=df)
+        plot.get_figure().savefig(output_dir / f"boxplot_{col}.png")
         plt.clf()
 
-    # Count plots.
-    for col in cat_names:
-        plot = sns.countplot(x=col, palette='rocket', data=df)
-        plot.get_figure().savefig(os.path.join(
-            model_output_dir, f'countplot_{col}.png'))
+    for col in categorical_cols:
+        plot = sns.countplot(x=col, data=df)
+        plot.get_figure().savefig(output_dir / f"countplot_{col}.png")
         plt.clf()
 
-    # Distribution plots.
-    for col in cont_names:
-        plot = sns.distplot(df[col])
-        plot.get_figure().savefig(os.path.join(
-            model_output_dir, f'distplot_{col}.png'))
+    for col in continuous_cols:
+        plot = sns.regplot(x=col, y="velocity", marker="+", scatter_kws={"alpha": 0.25}, data=df)
+        plot.get_figure().savefig(output_dir / f"regplot_{col}.png")
         plt.clf()
 
-    # Bar plots for categorical values against velocity.
-    for col in cat_names:
-        plot = sns.barplot(x=df[col], y=df.velocity, palette='rocket')
-        plot.get_figure().savefig(os.path.join(
-            model_output_dir, f'barplot_{col}_vs_velocity.png'))
+    for col in continuous_cols:
+        plot = sns.histplot(df[col])
+        plot.get_figure().savefig(output_dir / f"histplot_{col}.png")
         plt.clf()
 
-    # Hex + dist plots for continuous names against velocity.
-    for col in [name for name in cont_names if name != 'velocity']:
-        plot = sns.jointplot(x=col, y='velocity', data=df, kind='hex')
-        plot.savefig(os.path.join(model_output_dir,
-                                  f'hexplot_{col}_vs_velocity.png'))
-        plt.clf()
+def plot_predictions(df: pd.DataFrame, output_dir: Path):
+    click.echo("tabular_plotter plotting predictions")
+    os.makedirs(output_dir, exist_ok=True)
 
-    plt.subplots(figsize=(30, 30))
-
-    # Heatmap of correlations.
-    plot = sns.heatmap(df.corr(), vmin=-1, vmax=1,
-                       cmap='PiYG', xticklabels=True, yticklabels=True)
-    plt.tight_layout()
-    plot.get_figure().savefig(os.path.join(
-        model_output_dir, 'regression_correlations.png'))
-    plt.clf()
-
-    # Heatmap of absolute correlations (iow, ignoring whether the correlation
-    # is negative or positive and looking only at its strength).
-    plot = sns.heatmap(np.abs(df.corr()), vmin=0, vmax=1,
-                       cmap='Blues', xticklabels=True, yticklabels=True)
-    plt.tight_layout()
-    plot.get_figure().savefig(os.path.join(
-        model_output_dir, 'regression_correlations_absolute.png'))
-    plt.clf()
-
-
-def plot_predictions(df):
-    '''Plot relationship between predictions and targets.
-    '''
-    print('Plotting predictions ...')
-
-    # Relationship between predictions and targets.
-    plot = sns.relplot(x='target', y='prediction', col='name', hue='error',
-                       col_wrap=5, data=df)
-    plot.set(xlim=(-1, 1), ylim=(-1, 1))
-    plot.savefig(os.path.join(model_output_dir, 'predictions.png'))
+    # relationship between predictions and targets
+    for col, err_col in [("prediction", "error"), ("adjusted_prediction", "adjusted_error")]:
+        g = sns.FacetGrid(df, col="name", col_wrap=8)
+        g.map_dataframe(sns.scatterplot, x="target", y=col, hue=err_col, legend=False)
+        g.set(xlim=(-1, 1), ylim=(-1, 1))
+        g.savefig(output_dir / f"{col}.png")
