@@ -150,9 +150,13 @@ def _midi_file_to_df(midi_file) -> pd.DataFrame:
 
             sustain_duration = event.time - note_on_time
 
-            # if we get a note with a 0 sustain duration, use the duration of the previous note
+            # if we get a note with a 0 sustain duration, use the duration of the previous note (if there is one)
             if sustain_duration == 0:
-                sustain_duration = result[-1][16]
+                if len(result) > 0:
+                    sustain_duration = result[-1][16]
+                else:
+                    tqdm.write(f"midi_to_df_conversion warning: got first note with 0 duration; defaulting to 25")
+                    sustain_duration = 25.0
 
             # get the average pitch of all notes currently being played
             curr_pitches = [p for p, _, _ in currently_playing_notes] + [event.note]
