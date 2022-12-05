@@ -48,18 +48,6 @@ def midi_files_to_df(midi_filepaths: List[Path], skip_suspicious: bool = True) -
                 elif df[column].dtype == "int64":
                     df[column] = pd.to_numeric(df[column], downcast="integer")
 
-            # get time signature. enable this when we don"t use only 4/4.
-            # REVIEW: can be deleted?
-            if False:
-                time_signature_msgs = [msg for msg in midi_file.tracks[0]
-                                       if msg.type == "time_signature"]
-                assert len(time_signature_msgs) > 0, "No time signature found"
-                assert len(
-                    time_signature_msgs) < 2, "More than one time signature found"
-                time_signature = time_signature_msgs[0]
-                df["time_signature_num"] = time_signature.numerator
-                df["time_signature_den"] = time_signature.denominator
-
             dfs.append(df)
         # TODO: catch more specific exception
         except Exception as e:
