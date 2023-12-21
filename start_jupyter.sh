@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-tmux new-session -d -s rachel_jupyter "jupyter lab"
+tmux new-session -d -s midihum_jupyter "jupyter lab"
