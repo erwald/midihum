@@ -6,6 +6,8 @@ This tool requires Python 3. It has been tested on macOS Ventura 13.0.1 and Debi
 
 ## How does one use this?
 
+> **As of 2023-12-22, this does not work. However, within a few weeks, it should work, so watch this space.**
+
 Using midihum is easy. First clone the repository and install dependencies:
 
 ```shell
