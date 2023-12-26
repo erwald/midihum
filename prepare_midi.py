@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from midi_to_df_conversion import midi_files_to_df
 from midi_utility import get_note_tracks, NoteEvent, get_midi_filepaths
-import tabular_plotter
+import plotter
 
 _TRAIN_DATA_FILENAME = "train_data.parquet.gzip"
 _VALIDATE_DATA_FILENAME = "validate_data.parquet.gzip"
@@ -43,6 +43,8 @@ def get_sorted_velocity_correlations(df: pd.DataFrame) -> List[Tuple[str, float]
 
 def prepare_midi_data(source_dir: Path, destination_dir: Path):
     click.echo("prepare_midi preparing data")
+
+    # TODO: check that user has write privileges on destination dir, and if not, abort and warn.
 
     # repair midi files (if needed)
     repaired_midi_cache = Path(str(source_dir) + "_repaired_cache")
@@ -77,7 +79,7 @@ def prepare_midi_data(source_dir: Path, destination_dir: Path):
     validate_df.to_parquet(destination_dir / _VALIDATE_DATA_FILENAME)
 
     # plot some visualisations of the training set
-    tabular_plotter.plot_data(train_df.sample(5000), Path("plots"))
+    plotter.plot_data(train_df.sample(5000), Path("plots"))
 
 
 def repair_midi_files(source_dir: Path, cache_dir: Path, bust_cache: bool = False):

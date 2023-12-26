@@ -5,7 +5,7 @@ import click
 from find_duplicate_midi_files import find_duplicate_midi_files
 from midi_scraper import scrape_midi_data
 from prepare_midi import prepare_midi_data
-from midihum_tabular import MidihumTabular
+from midihum_model import MidihumModel
 import time_displacer
 
 
@@ -40,16 +40,13 @@ def find_midi_duplicates(target_dir: str):
 @midihum.command()
 @click.argument("source")
 @click.argument("destination")
-@click.option(
-    "--rescale/--no-rescale",
-    default=True,
-    help="Normalises and scales velocities as a final step.",
-)
-def humanize(source: str, destination: str, rescale: bool):
+def humanize(source: str, destination: str):
     """Humanize MIDI file at SOURCE, writing to DESTINATION."""
     assert source != destination, (source, destination)
-    tabular = MidihumTabular(predict_only=True)
-    tabular.humanize(Path(source), Path(destination), rescale=rescale)
+    try:
+        MidihumModel().humanize(Path(source), Path(destination))
+    except Exception as e:
+        click.echo(f"midihum could not humanize the given file: {e}")
 
 
 @midihum.command()

@@ -13,6 +13,7 @@ from midi_utility import get_note_tracks, get_midi_file_hash
 from chord_identifier import chord_attributes
 
 
+# TODO: parallelize this, so we can take advantage of multiple cores.
 def midi_files_to_df(
     midi_filepaths: List[Path], skip_suspicious: bool = True
 ) -> pd.DataFrame:
@@ -254,7 +255,7 @@ def _add_engineered_features(
     ).fillna(0)
 
     # get time elapsed since various further events. since some of these happen rather rarely (resulting in some very
-    # large values), we also normalise.
+    # large values), we also normalize.
     for cat in [
         "pitch_class",
         "octave",

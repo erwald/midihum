@@ -10,7 +10,7 @@ sns.set_theme(style="whitegrid", palette="bright")
 
 
 def plot_data(df: pd.DataFrame, output_dir: Path):
-    click.echo("tabular_plotter plotting data")
+    click.echo("plotter plotting data")
     os.makedirs(output_dir, exist_ok=True)
 
     categorical_cols = []
@@ -60,7 +60,7 @@ def plot_data(df: pd.DataFrame, output_dir: Path):
 
 
 def plot_predictions(df: pd.DataFrame, output_dir: Path):
-    click.echo("tabular_plotter plotting predictions")
+    click.echo("plotter plotting predictions")
     os.makedirs(output_dir, exist_ok=True)
 
     # relationship between predictions and targets
