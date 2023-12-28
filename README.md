@@ -6,15 +6,13 @@ This tool requires Python 3. It has been tested on macOS Ventura 13.0.1 and Debi
 
 ## How does one use this?
 
-> **As of 2023-12-22, this does not work. However, within a few weeks, it should work, so watch this space.**
-
 Using midihum is easy. First clone the repository and install dependencies:
 
 ```shell
 pip install -r requirements.txt
 ```
 
-Then navigate to the midihum dir and simply:
+Then navigate to the midihum directory and simply:
 
 ```shell
 python main.py humanize /path/to/file.mid /path/to/humanized_file.mid
@@ -26,4 +24,4 @@ The program uses [XGBoost](https://xgboost.readthedocs.io/en/stable/) gradient b
 
 ## With which data was the model trained?
 
-The model is trained using data from the International Piano-e-Competition. This project is dedicated to those talented young performers.
+The model is trained using data from the International Piano-e-Competition. The midihum tool is dedicated to those talented young performers.

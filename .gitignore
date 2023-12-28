@@ -111,6 +111,5 @@ dfs/
 midi_data/
 midi_data_broken/
 midi_data_repaired_cache/
-model_cache/
 plots/
 archive/

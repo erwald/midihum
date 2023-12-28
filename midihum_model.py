@@ -16,8 +16,9 @@ from prepare_midi import load_data
 class MidihumModel:
     """An XGBoost model for predicting velocities of MIDI note values."""
 
-    model_path = Path(f"model_cache/midihum.json")
-    scaler_path = Path(f"model_cache/midihum_scaler.json")
+    model_cache_path = Path("model_cache")
+    model_path = Path(f"{model_cache_path}/midihum.json")
+    scaler_path = Path(f"{model_cache_path}/midihum_scaler.json")
 
     def __init__(self):
         if self.model_path.exists() and self.scaler_path.exists():
@@ -25,9 +26,17 @@ class MidihumModel:
                 f"midihum_model loading model from {self.model_path} and {self.scaler_path}"
             )
             self.model = xgb.XGBRegressor(
-                # TODO: set hyperparams
-                n_estimators=100,
+                booster="gbtree",
+                max_depth=7,
                 learning_rate=0.05,
+                n_estimators=1700,
+                gamma=0.1,
+                min_child_weight=7,
+                subsample=0.9,
+                colsample_bytree=0.6,
+                reg_alpha=0.2,
+                reg_lambda=0.4,
+                n_jobs=8,
                 enable_categorical=True,
             )
             self.model.load_model(self.model_path)
@@ -74,13 +83,10 @@ class MidihumModel:
             127,
         )
 
-    def humanize(
-        self, source_path: Path, destination_path: Path, rescale: bool = True
-    ) -> List[float]:
-        click.echo(f"midihum_tabular humanizing {source_path}")
-        df = midi_files_to_df(
-            midi_filepaths=[source_path], skip_suspicious=False
-        ).copy()
+    def add_velocities_to_df(
+        self,
+        df: pd.DataFrame,
+    ) -> pd.DataFrame:
         cat_names, cont_names, out_names = self._get_column_names_from_df(df)
         for col in cat_names:
             df[col] = df[col].astype("category")
@@ -94,10 +100,21 @@ class MidihumModel:
             df.drop(["midi_track_index", "midi_event_index", "name"], axis=1)
         )
         df["prediction"] = self._rescale_predictions(self.scaler, df["prediction"])
-
         click.echo(
             f"midihum_tabular inferred {len(df)} velocities with mean {np.mean(df.prediction)} and std {np.std(df.prediction)}"
         )
+        return df
+
+    def humanize(
+        self, source_path: Path, destination_path: Path, rescale: bool = True
+    ) -> List[float]:
+        click.echo(f"midihum_tabular humanizing {source_path}")
+        df = midi_files_to_df(
+            midi_filepaths=[source_path], skip_suspicious=False
+        ).copy()
+
+        # standardize input columns and add predicted velocities
+        df = self.add_velocities_to_df(df)
 
         # load input midi file and, for each prediction, set the new velocity
         midi_file = mido.MidiFile(source_path)
