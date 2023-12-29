@@ -92,14 +92,16 @@ class MidihumModel:
             df[col] = df[col].astype("category")
 
         # standardize input columns
+        out_cols = df[out_names].copy()
         df[cont_names + out_names] = self.scaler.transform(df[cont_names + out_names])
-        df = df.drop(out_names, axis=1)
 
         # make velocity predictions for each row (note on) of the input
+        df = df.drop(out_names, axis=1)
         df["prediction"] = self.model.predict(
             df.drop(["midi_track_index", "midi_event_index", "name"], axis=1)
         )
         df["prediction"] = self._rescale_predictions(self.scaler, df["prediction"])
+        df[out_names] = out_cols
         click.echo(
             f"midihum_tabular inferred {len(df)} velocities with mean {np.mean(df.prediction)} and std {np.std(df.prediction)}"
         )
