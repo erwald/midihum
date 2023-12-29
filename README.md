@@ -4,7 +4,7 @@ midihum (the tool formerly known as rachel) is a command-line tool for humanizin
 
 This tool requires Python 3. It has been tested on macOS Ventura 13.0.1 and Debian GNU/Linux 5.10.178-3.
 
-## How does one use this?
+## Usage
 
 Using midihum is easy. First clone the repository, navigate to the midihum/ directory, and install dependencies:
 
@@ -18,7 +18,7 @@ Then -- making sure you're still in the midihum/ directory -- simply:
 python main.py humanize /path/to/file.mid /path/to/humanized_file.mid
 ```
 
-## How well does it work?
+## Performance
 
 Surprisingly well, at least for solo piano works. Here are the true velocities and the predicted velocities for nine randomly chosen, not-cherry-picked performances from the validation set:
 
@@ -28,7 +28,7 @@ For the same nine pieces, the model captures the dynamics over the course of the
 
 ![True versus predicted velocities over time](midihum_velocities_over_time.png)
 
-## How does the model look?
+## Model
 
 The program uses [XGBoost](https://xgboost.readthedocs.io/en/stable/) gradient boosted trees for its model, where each observation is one MIDI note on event (see `midihum_model.py`), with a large (~1K) set of derived features (see `midi_to_df_conversion.py`).
 
