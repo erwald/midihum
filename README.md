@@ -30,7 +30,7 @@ In the above plot, each dot is a note on event, randomly sampled from the piece.
 
 ## Model
 
-The program uses [XGBoost](https://xgboost.readthedocs.io/en/stable/) gradient boosted trees for its model, where each observation is one MIDI note on event (see `midihum_model.py`), with a large (~1K) set of derived features (see `midi_to_df_conversion.py`).
+The program uses [XGBoost](https://xgboost.readthedocs.io/en/stable/) gradient boosted trees for its model, where each observation is one MIDI note on event (see `midihum_model.py`), with a large (~400) set of derived features (see `midi_to_df_conversion.py`).
 
 ## Acknowledgements
 
