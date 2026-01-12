@@ -4,7 +4,7 @@ import traceback
 from typing import Tuple, List, Dict
 
 import click
-from mido import MidiFile
+from mido import MidiFile, Message
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -138,15 +138,44 @@ def load_and_repair_midi_file(midi_filepath: Path) -> MidiFile:
             tqdm.write(
                 f"prepare_midi found {len(dangling_note_events)} dangling note(s) on event(s) for {midi_filepath}"
             )
-            mean_sustain = int(np.ceil(np.mean(sustains)))
+            assert len(sustains) > 0, (
+                f"prepare_midi cannot repair {midi_filepath}: track has dangling notes but no "
+                f"completed notes to calculate sustain duration from"
+            )
+            median_sustain = int(np.ceil(np.median(sustains)))
+
+            # get the actual midi track and rebuild it with note_off events inserted
+            actual_track = midi_file.tracks[track.index]
+
+            # build list of (absolute_time, message) for all messages with time
+            timed_messages = []
+            cumulative_time = 0
+            for msg in actual_track:
+                if hasattr(msg, "time"):
+                    cumulative_time += msg.time
+                    timed_messages.append((cumulative_time, msg))
+
+            # add note_off messages for dangling notes
             for dangling_note in dangling_note_events:
-                new_event = NoteEvent(
-                    dangling_note.index,
-                    dangling_note.time + mean_sustain,
+                note_off_time = dangling_note.time + median_sustain
+                note_off_msg = Message(
                     "note_off",
-                    dangling_note.note,
-                    0,
+                    note=dangling_note.note,
+                    velocity=0,
+                    time=0,  # recalculated below
                 )
-                track.note_events.append(new_event)
+                timed_messages.append((note_off_time, note_off_msg))
+
+            # sort by absolute time and rebuild with correct delta times
+            timed_messages.sort(key=lambda x: x[0])
+            prev_time = 0
+            for abs_time, msg in timed_messages:
+                msg.time = abs_time - prev_time
+                prev_time = abs_time
+
+            # replace track contents with fixed messages
+            actual_track.clear()
+            for _, msg in timed_messages:
+                actual_track.append(msg)
 
     return midi_file
