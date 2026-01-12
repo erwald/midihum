@@ -69,6 +69,11 @@ def midi_files_to_df(
         f"midi_to_df_conversion converted {processed_count} files out of {total_count} to dfs"
     )
 
+    if len(dfs) == 0:
+        raise ValueError(
+            f"midi_to_df_conversion could not convert any of {total_count} files to dataframes"
+        )
+
     return pd.concat(dfs)
 
 
