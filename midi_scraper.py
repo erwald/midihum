@@ -35,6 +35,11 @@ def scrape_midi_data(dest_dir: Path):
 
             click.echo(f"midi_scraper downloading {full_url} and saving to {out_path}")
             response = requests.get(full_url)
+            if response.status_code != 200:
+                click.echo(
+                    f"midi_scraper failed to download {full_url}: HTTP {response.status_code}"
+                )
+                continue
             with open(out_path, "wb") as f:
                 f.write(response.content)
 
