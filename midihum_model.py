@@ -43,10 +43,9 @@ class MidihumModel:
             with open(self.scaler_path, "rb") as f:
                 self.scaler = pickle.load(f)
         else:
-            click.echo(
-                f"midihum_model could not find model in {self.model_path} and {self.scaler_path}"
+            raise FileNotFoundError(
+                f"Model files not found at {self.model_path} or {self.scaler_path}"
             )
-            raise Exception()
 
     @staticmethod
     def _get_column_names_from_df(
