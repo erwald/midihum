@@ -18,6 +18,97 @@ _TRAIN_DATA_FILENAME = "train_data.parquet.gzip"
 _VALIDATE_DATA_FILENAME = "validate_data.parquet.gzip"
 
 
+def find_dangling_notes_and_sustains(
+    note_events: List[NoteEvent],
+) -> Tuple[List[NoteEvent], List[float]]:
+    """
+    analyze note events to find dangling note_ons (notes without corresponding note_offs)
+    and calculate sustain durations for completed notes.
+
+    returns (dangling_note_events, sustains).
+    """
+    sustains = []
+    dangling_note_events = []
+
+    for event in note_events:
+        if event.type == "note_on" and event.velocity > 0:
+            dangling_note_events.append(event)
+        elif event.type == "note_off" or (
+            event.type == "note_on" and event.velocity == 0
+        ):
+            note_on_event = next(
+                iter([x for x in dangling_note_events if x.note == event.note]),
+                None,
+            )
+            if note_on_event:
+                dangling_note_events.remove(note_on_event)
+                sustains.append(event.time - note_on_event.time)
+        else:
+            assert False, event
+
+    return dangling_note_events, sustains
+
+
+def track_to_absolute_times(track) -> List[Tuple[int, Message]]:
+    """
+    convert a midi track's messages from delta times to absolute times.
+
+    returns list of (absolute_time, message) tuples.
+    """
+    timed_messages = []
+    cumulative_time = 0
+
+    for msg in track:
+        if hasattr(msg, "time"):
+            cumulative_time += msg.time
+            timed_messages.append((cumulative_time, msg))
+
+    return timed_messages
+
+
+def create_note_offs_for_dangling_notes(
+    dangling_notes: List[NoteEvent], sustain_duration: int
+) -> List[Tuple[int, Message]]:
+    """
+    create note_off messages for dangling notes at note_on_time + sustain_duration.
+
+    returns list of (absolute_time, message) tuples.
+    """
+    result = []
+
+    for dangling_note in dangling_notes:
+        note_off_time = dangling_note.time + sustain_duration
+        note_off_msg = Message(
+            "note_off",
+            note=dangling_note.note,
+            velocity=0,
+            time=0,  # will be recalculated when rebuilding track
+        )
+        result.append((note_off_time, note_off_msg))
+
+    return result
+
+
+def rebuild_track_with_messages(
+    track, timed_messages: List[Tuple[int, Message]]
+) -> None:
+    """
+    sort messages by absolute time, recalculate delta times, and replace track contents.
+
+    modifies track in place.
+    """
+    timed_messages.sort(key=lambda x: x[0])
+
+    prev_time = 0
+    for abs_time, msg in timed_messages:
+        msg.time = abs_time - prev_time
+        prev_time = abs_time
+
+    track.clear()
+    for _, msg in timed_messages:
+        track.append(msg)
+
+
 def load_data(data_dir: Path):
     click.echo("prepare_midi loading data")
     train_df = pd.read_parquet(data_dir / _TRAIN_DATA_FILENAME)
@@ -112,70 +203,30 @@ def load_and_repair_midi_file(midi_filepath: Path) -> MidiFile:
         click.echo(f"prepare_midi got exception loading {midi_filepath}: {e}")
         raise e
 
-    # some midi files have "dangling" note on events -- note ons that don't have corresponding note offs after them.
-    # this fixes that by getting the average duration a note is sustained and, for each dangling note on event, adding
-    # note off events after that duration.
+    # some midi files have "dangling" note on events -- note ons that don't have corresponding
+    # note offs after them. this fixes that by getting the median duration a note is sustained
+    # and, for each dangling note on event, adding note off events after that duration.
     for track in get_note_tracks(midi_file):
-        sustains = []
-        dangling_note_events = []
-        for event in track.note_events:
-            if event.type == "note_on" and event.velocity > 0:
-                dangling_note_events.append(event)
-            elif event.type == "note_off" or (
-                event.type == "note_on" and event.velocity == 0
-            ):
-                note_on_event = next(
-                    iter([x for x in dangling_note_events if x.note == event.note]),
-                    None,
-                )
-                if note_on_event:
-                    dangling_note_events.remove(note_on_event)
-                    sustains.append(note_on_event.time - event.time)
-            else:
-                assert False, event
+        dangling_note_events, sustains = find_dangling_notes_and_sustains(
+            track.note_events
+        )
 
         if len(dangling_note_events) > 0:
             tqdm.write(
-                f"prepare_midi found {len(dangling_note_events)} dangling note(s) on event(s) for {midi_filepath}"
+                f"prepare_midi found {len(dangling_note_events)} dangling note(s) on "
+                f"event(s) for {midi_filepath}"
             )
             assert len(sustains) > 0, (
-                f"prepare_midi cannot repair {midi_filepath}: track has dangling notes but no "
-                f"completed notes to calculate sustain duration from"
+                f"prepare_midi cannot repair {midi_filepath}: track has dangling notes "
+                f"but no completed notes to calculate sustain duration from"
             )
             median_sustain = int(np.ceil(np.median(sustains)))
 
-            # get the actual midi track and rebuild it with note_off events inserted
-            actual_track = midi_file.tracks[track.index]
-
-            # build list of (absolute_time, message) for all messages with time
-            timed_messages = []
-            cumulative_time = 0
-            for msg in actual_track:
-                if hasattr(msg, "time"):
-                    cumulative_time += msg.time
-                    timed_messages.append((cumulative_time, msg))
-
-            # add note_off messages for dangling notes
-            for dangling_note in dangling_note_events:
-                note_off_time = dangling_note.time + median_sustain
-                note_off_msg = Message(
-                    "note_off",
-                    note=dangling_note.note,
-                    velocity=0,
-                    time=0,  # recalculated below
-                )
-                timed_messages.append((note_off_time, note_off_msg))
-
-            # sort by absolute time and rebuild with correct delta times
-            timed_messages.sort(key=lambda x: x[0])
-            prev_time = 0
-            for abs_time, msg in timed_messages:
-                msg.time = abs_time - prev_time
-                prev_time = abs_time
-
-            # replace track contents with fixed messages
-            actual_track.clear()
-            for _, msg in timed_messages:
-                actual_track.append(msg)
+            midi_track = midi_file.tracks[track.index]
+            timed_messages = track_to_absolute_times(midi_track)
+            timed_messages.extend(
+                create_note_offs_for_dangling_notes(dangling_note_events, median_sustain)
+            )
+            rebuild_track_with_messages(midi_track, timed_messages)
 
     return midi_file
