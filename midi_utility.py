@@ -1,6 +1,7 @@
 from collections import namedtuple
 import hashlib
 import itertools
+import struct
 from pathlib import Path
 from typing import List
 
@@ -42,9 +43,9 @@ def get_midi_file_hash(midi_file: MidiFile) -> str:
     for msg in midi_file:
         if not isinstance(msg, Message) or msg.type != "note_on":
             continue
-        concatenated += bytes(round(msg.time))
-        concatenated += bytes(msg.note)
-        concatenated += bytes(msg.velocity)
+        concatenated += struct.pack('>I', round(msg.time))
+        concatenated += struct.pack('B', msg.note)
+        concatenated += struct.pack('B', msg.velocity)
     return hashlib.md5(concatenated).hexdigest()
 
 
