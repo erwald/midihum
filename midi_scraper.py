@@ -22,7 +22,8 @@ def scrape_midi_data(dest_dir: Path):
         index_path = f"{base_path}/midi_{year}.asp"
         click.echo(f"midi_scraper fetching {year} index at {index_path}")
         try:
-            html_str = str(urlopen(index_path).read())
+            with urlopen(index_path) as response:
+                html_str = str(response.read())
         except HTTPError as e:
             click.echo(f"midi_scraper failed to fetch {index_path}: HTTP {e.code}")
             continue
