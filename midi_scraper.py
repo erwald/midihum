@@ -2,6 +2,7 @@ from pathlib import Path
 import random
 import time
 from urllib.request import urlopen
+from urllib.error import URLError, HTTPError
 
 import click
 import requests
@@ -20,7 +21,14 @@ def scrape_midi_data(dest_dir: Path):
     for year in years:
         index_path = f"{base_path}/midi_{year}.asp"
         click.echo(f"midi_scraper fetching {year} index at {index_path}")
-        html_str = str(urlopen(index_path).read())
+        try:
+            html_str = str(urlopen(index_path).read())
+        except HTTPError as e:
+            click.echo(f"midi_scraper failed to fetch {index_path}: HTTP {e.code}")
+            continue
+        except URLError as e:
+            click.echo(f"midi_scraper failed to fetch {index_path}: {e.reason}")
+            continue
         midi_urls = [Path(url) for url in html_str.split('"') if ".mid" in url.lower()]
 
         for midi_url in midi_urls:
