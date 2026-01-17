@@ -113,3 +113,4 @@ midi_data_broken/
 midi_data_repaired_cache/
 plots/
 archive/
+test_output/
