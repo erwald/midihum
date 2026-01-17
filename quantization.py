@@ -149,53 +149,14 @@ def quantize_notes_to_clusters(
     return results, stats
 
 
-def get_cluster_grid(clusters: List[List[int]]) -> List[int]:
-    """
-    Get grid points from cluster centroids.
-
-    Returns the centroid of each cluster as a grid point.
-    """
-    return [int(np.mean(c)) for c in clusters]
+# Utility functions for quantization analysis
 
 
-# Legacy API compatibility
 def calculate_inter_onset_intervals(onset_times: List[int]) -> np.ndarray:
     """Calculate inter-onset intervals between consecutive note onsets."""
     if len(onset_times) < 2:
         return np.array([])
     return np.diff(np.array(onset_times))
-
-
-def detect_grid_from_onsets(
-    onset_times: List[int],
-    ticks_per_beat: int = 480,
-    subdivisions: int = 4,
-    tempo_window: int = 16,
-    tempo_smoothing: float = 3.0,
-) -> Tuple[List[int], List[float]]:
-    """
-    Detect grid from note onsets using cluster-centroid method.
-
-    Returns cluster centroids as grid points and cluster sizes as "local beats".
-    """
-    if len(onset_times) < 2:
-        return list(onset_times), [float(ticks_per_beat)] * len(onset_times)
-
-    clusters = cluster_onsets_by_proximity(onset_times, gap_threshold=20)
-    centroids = compute_cluster_centroids(clusters)
-
-    # Map each onset to its cluster's centroid and size
-    onset_to_cluster = {}
-    for cluster_id, cluster in enumerate(clusters):
-        for t in cluster:
-            onset_to_cluster[t] = cluster_id
-
-    local_values = []
-    for t in onset_times:
-        cluster_id = onset_to_cluster[t]
-        local_values.append(float(len(clusters[cluster_id])))
-
-    return [int(c) for c in centroids], local_values
 
 
 def quantize_to_grid(
@@ -248,14 +209,6 @@ def analyze_quantization_quality(
         "percentile_5": float(np.percentile(offsets, 5)),
         "percentile_95": float(np.percentile(offsets, 95)),
     }
-
-
-# Keep these for backward compatibility
-def estimate_base_beat_duration(iois: np.ndarray, ticks_per_beat: int = 480) -> int:
-    """Estimate base beat duration from IOI distribution."""
-    if len(iois) == 0:
-        return ticks_per_beat
-    return int(np.median(iois[iois >= ticks_per_beat // 8]))
 
 
 def calculate_local_density(onset_times: List[int], window_size: int = 500) -> np.ndarray:

@@ -12,8 +12,6 @@ from tqdm import tqdm
 from midi_utility import get_note_tracks, get_midi_file_hash
 from chord_identifier import chord_attributes
 from quantization import (
-    detect_grid_from_onsets,
-    quantize_to_grid,
     calculate_local_density,
     quantize_notes_to_clusters,
 )
