@@ -8,5 +8,6 @@ requests ~= 2.32.3
 scikit-learn ~= 1.5.0
 scipy ~= 1.15.0
 seaborn ~= 0.13.2
+matplotlib >= 3.4, < 4.0
 tqdm ~= 4.67.1
 xgboost ~= 2.1.3
