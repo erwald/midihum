@@ -11,11 +11,18 @@ from tqdm import tqdm
 
 from midi_utility import get_note_tracks, get_midi_file_hash
 from chord_identifier import chord_attributes
+from quantization import (
+    detect_grid_from_onsets,
+    quantize_to_grid,
+    calculate_local_density,
+)
 
 
 # TODO: parallelize this, so we can take advantage of multiple cores.
 def midi_files_to_df(
-    midi_filepaths: List[Path], skip_suspicious: bool = True
+    midi_filepaths: List[Path],
+    skip_suspicious: bool = True,
+    include_time_displacement: bool = False,
 ) -> pd.DataFrame:
     dfs = []
     hashes_to_filenames: Dict[str, str] = {}
@@ -44,6 +51,10 @@ def midi_files_to_df(
 
             df["name"] = os.path.split(midi_file.filename)[-1]
             df = _add_engineered_features(df)
+
+            if include_time_displacement:
+                df = _add_time_displacement_features(df)
+
             assert not np.any(df.index.duplicated()), (midi_filepath, df)
 
             # reduce size by downcasting float64 and int64 columns
@@ -442,3 +453,78 @@ def _add_engineered_features(
     return pd.concat(
         [df] + [col.rename(name) for name, col in new_cols.items()], axis=1
     )
+
+
+def _add_time_displacement_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    add time displacement features to a dataframe for training.
+
+    this function:
+    1. detects the rhythmic grid from onset times
+    2. calculates time_offset (actual - quantized) as the target variable
+    3. adds grid-related features useful for prediction
+
+    args:
+        df: dataframe with 'time' column containing absolute onset times
+
+    returns:
+        dataframe with added columns:
+        - time_offset: target variable (signed, in MIDI ticks)
+        - grid_resolution: local grid size used for quantization
+        - local_density: note density around each onset
+        - position_in_grid: relative position within grid cell (0-1)
+    """
+    onset_times = df["time"].tolist()
+
+    if len(onset_times) < 2:
+        # not enough notes for meaningful grid detection
+        df["time_offset"] = 0
+        df["grid_resolution"] = 100
+        df["local_density"] = 1.0
+        df["position_in_grid"] = 0.5
+        return df
+
+    # detect grid and quantize
+    grid_times, grid_resolutions = detect_grid_from_onsets(onset_times)
+    quant_results = quantize_to_grid(onset_times, grid_times)
+
+    # extract time_offset (target variable)
+    time_offsets = [qr[2] for qr in quant_results]
+    df["time_offset"] = time_offsets
+
+    # add grid resolution for each note
+    df["grid_resolution"] = grid_resolutions
+
+    # add local density
+    densities = calculate_local_density(onset_times)
+    df["local_density"] = densities
+
+    # calculate position within grid cell (0 = at grid point, 0.5 = halfway)
+    # this helps the model understand where in the beat the note falls
+    positions = []
+    for actual, quantized, offset in quant_results:
+        # find the grid resolution for this note to normalize
+        idx = onset_times.index(actual)
+        resolution = grid_resolutions[idx] if idx < len(grid_resolutions) else 100
+        if resolution > 0:
+            # normalize offset to 0-1 range (0.5 = on grid)
+            normalized = (offset / resolution) + 0.5
+            positions.append(max(0, min(1, normalized)))
+        else:
+            positions.append(0.5)
+    df["position_in_grid"] = positions
+
+    # add log versions for better model performance
+    df["log_local_density"] = np.log(df["local_density"] + 1)
+    df["log_grid_resolution"] = np.log(df["grid_resolution"] + 1)
+
+    # add rolling stats for time_offset (useful for detecting patterns)
+    for window in [5, 15, 30]:
+        df[f"time_offset_sma_{window}"] = (
+            df["time_offset"].rolling(window, min_periods=1).mean()
+        )
+        df[f"time_offset_std_{window}"] = (
+            df["time_offset"].rolling(window, min_periods=1).std().fillna(0)
+        )
+
+    return df

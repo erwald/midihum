@@ -132,6 +132,10 @@ def get_sorted_velocity_correlations(df: pd.DataFrame) -> List[Tuple[str, float]
     return sorted(correlations.items(), key=lambda x: x[1], reverse=True)
 
 
+_TIME_DISP_TRAIN_FILENAME = "time_disp_train.parquet.gzip"
+_TIME_DISP_VALIDATE_FILENAME = "time_disp_validate.parquet.gzip"
+
+
 def prepare_midi_data(source_dir: Path, destination_dir: Path):
     click.echo("prepare_midi preparing data")
 
@@ -230,3 +234,81 @@ def load_and_repair_midi_file(midi_filepath: Path) -> MidiFile:
             rebuild_track_with_messages(midi_track, timed_messages)
 
     return midi_file
+
+
+def get_sorted_time_offset_correlations(df: pd.DataFrame) -> List[Tuple[str, float]]:
+    """get feature correlations with time_offset target, sorted by correlation."""
+    correlations: Dict[str, float] = {}
+    cols_to_skip = [
+        "name", "velocity", "time_offset", "midi_track_index", "midi_event_index"
+    ]
+    pbar = tqdm(
+        [
+            col
+            for col in df.columns
+            if col not in cols_to_skip and pd.api.types.is_numeric_dtype(df[col])
+        ]
+    )
+    for col in pbar:
+        pbar.set_description(f"prepare_midi calculating {col} correlation")
+        correlations[col] = df[col].corr(df.time_offset)
+    return sorted(correlations.items(), key=lambda x: abs(x[1]), reverse=True)
+
+
+def prepare_time_displacement_data(source_dir: Path, destination_dir: Path):
+    """
+    prepare training data for time displacement model.
+
+    similar to prepare_midi_data, but includes time_offset target
+    calculated from grid detection.
+    """
+    click.echo("prepare_midi preparing time displacement data")
+
+    # repair midi files (if needed)
+    repaired_midi_cache = Path(str(source_dir) + "_repaired_cache")
+    repair_midi_files(source_dir, repaired_midi_cache)
+
+    # load repaired midi files, split and convert to dfs
+    midi_data_filepaths = get_midi_filepaths(repaired_midi_cache)
+    train_filepaths, validate_filepaths = train_test_split(
+        midi_data_filepaths, test_size=0.1, random_state=89253
+    )
+
+    click.echo("prepare_midi converting training files to df with time displacement features")
+    train_df = midi_files_to_df(
+        midi_filepaths=train_filepaths,
+        include_time_displacement=True,
+    )
+    click.echo("prepare_midi converting validation files to df with time displacement features")
+    validate_df = midi_files_to_df(
+        midi_filepaths=validate_filepaths,
+        include_time_displacement=True,
+    )
+
+    # print info about the training data
+    click.echo(f"train shape: {train_df.shape}")
+    click.echo(f"train time_offset stats:")
+    click.echo(f"  mean: {train_df.time_offset.mean():.2f}")
+    click.echo(f"  std: {train_df.time_offset.std():.2f}")
+    click.echo(f"  min: {train_df.time_offset.min()}")
+    click.echo(f"  max: {train_df.time_offset.max()}")
+
+    correlations = get_sorted_time_offset_correlations(train_df)
+    click.echo("top 25 time_offset correlations (by absolute value):")
+    for corr in correlations[:25]:
+        click.echo(f"  {corr[0]}: {corr[1]:.4f}")
+
+    click.echo(f"prepare_midi loaded {len(midi_data_filepaths)} files; saving")
+    os.makedirs(destination_dir, exist_ok=True)
+    train_df.to_parquet(destination_dir / _TIME_DISP_TRAIN_FILENAME)
+    validate_df.to_parquet(destination_dir / _TIME_DISP_VALIDATE_FILENAME)
+
+    click.echo(f"prepare_midi saved time displacement data to {destination_dir}")
+
+
+def load_time_displacement_data(data_dir: Path):
+    """load time displacement training and validation data."""
+    click.echo("prepare_midi loading time displacement data")
+    train_df = pd.read_parquet(data_dir / _TIME_DISP_TRAIN_FILENAME)
+    validate_df = pd.read_parquet(data_dir / _TIME_DISP_VALIDATE_FILENAME)
+    return train_df, validate_df
