@@ -1,11 +1,14 @@
 """
-test script for quantization and visualization.
+Test script for quantization and visualization using real MIDI data.
 
-run with: python test_quantization.py
+Run with: python test_quantization.py
 """
 
+import random
 from pathlib import Path
+
 import numpy as np
+from mido import MidiFile
 
 from quantization import (
     calculate_inter_onset_intervals,
@@ -16,185 +19,163 @@ from quantization import (
     analyze_quantization_quality,
 )
 from plotter import plot_piano_roll_with_grid, plot_quantization_analysis
+from midi_utility import get_note_tracks, get_midi_filepaths
 
 
-def generate_synthetic_performance(
-    base_tempo: int = 100,
-    num_measures: int = 8,
-    beats_per_measure: int = 4,
-    humanize_std: int = 15,
-):
+def load_notes_from_midi(midi_path: Path) -> list:
     """
-    generate synthetic note onset times simulating an expressive performance.
+    Load notes from a MIDI file and return them in the format expected by plotting.
 
-    creates a mix of:
-    - quarter notes (on beats)
-    - eighth note runs
-    - chords
-    with humanized timing (gaussian noise added to perfect timing).
-
-    returns:
+    Returns:
         list of note dicts with onset_time, offset_time, pitch, velocity
     """
+    midi_file = MidiFile(midi_path)
+    tracks = get_note_tracks(midi_file)
+
     notes = []
-    ticks_per_beat = base_tempo
+    # Track active notes to pair note_on with note_off
+    active_notes = {}  # (track_idx, pitch) -> note_dict
 
-    # generate notes for each measure
-    current_time = 0
-    note_id = 0
+    for track in tracks:
+        for event in track.note_events:
+            key = (track.index, event.note)
 
-    for measure in range(num_measures):
-        measure_start = measure * beats_per_measure * ticks_per_beat
+            if event.type == "note_on" and event.velocity > 0:
+                # Start of a note
+                active_notes[key] = {
+                    "onset_time": event.time,
+                    "pitch": event.note,
+                    "velocity": event.velocity,
+                }
+            elif event.type == "note_off" or (event.type == "note_on" and event.velocity == 0):
+                # End of a note
+                if key in active_notes:
+                    note = active_notes.pop(key)
+                    note["offset_time"] = event.time
+                    notes.append(note)
 
-        if measure % 4 == 0:
-            # quarter notes on each beat (melody)
-            for beat in range(beats_per_measure):
-                perfect_time = measure_start + beat * ticks_per_beat
-                humanized_time = int(perfect_time + np.random.normal(0, humanize_std))
-                pitch = 60 + np.random.choice([0, 2, 4, 5, 7, 9, 11, 12])  # C major scale
+    # Handle any notes that didn't get a note_off (add default duration)
+    for note in active_notes.values():
+        note["offset_time"] = note["onset_time"] + 100
+        notes.append(note)
 
-                notes.append({
-                    "onset_time": humanized_time,
-                    "offset_time": humanized_time + int(ticks_per_beat * 0.9),
-                    "pitch": pitch,
-                    "velocity": np.random.randint(60, 100),
-                })
-                note_id += 1
-
-        elif measure % 4 == 1:
-            # eighth note run (fast passage)
-            for eighth in range(beats_per_measure * 2):
-                perfect_time = measure_start + eighth * (ticks_per_beat // 2)
-                humanized_time = int(perfect_time + np.random.normal(0, humanize_std * 0.7))
-                pitch = 60 + eighth  # ascending run
-
-                notes.append({
-                    "onset_time": humanized_time,
-                    "offset_time": humanized_time + int(ticks_per_beat * 0.4),
-                    "pitch": pitch,
-                    "velocity": np.random.randint(50, 80),
-                })
-                note_id += 1
-
-        elif measure % 4 == 2:
-            # chords on beats 1 and 3
-            for beat in [0, 2]:
-                perfect_time = measure_start + beat * ticks_per_beat
-                humanized_time = int(perfect_time + np.random.normal(0, humanize_std))
-
-                # chord (3-4 notes at once, slightly spread)
-                for i, pitch in enumerate([48, 52, 55, 60]):
-                    spread = int(np.random.normal(0, 5))  # slight spread for chord
-                    notes.append({
-                        "onset_time": humanized_time + spread,
-                        "offset_time": humanized_time + spread + int(ticks_per_beat * 1.8),
-                        "pitch": pitch,
-                        "velocity": np.random.randint(70, 100),
-                    })
-                    note_id += 1
-
-        else:
-            # sixteenth note run (very fast passage)
-            for sixteenth in range(beats_per_measure * 4):
-                perfect_time = measure_start + sixteenth * (ticks_per_beat // 4)
-                humanized_time = int(perfect_time + np.random.normal(0, humanize_std * 0.5))
-                pitch = 72 - (sixteenth % 8)  # descending pattern
-
-                notes.append({
-                    "onset_time": humanized_time,
-                    "offset_time": humanized_time + int(ticks_per_beat * 0.2),
-                    "pitch": pitch,
-                    "velocity": np.random.randint(40, 70),
-                })
-                note_id += 1
-
-    # sort by onset time
+    # Sort by onset time
     notes.sort(key=lambda n: n["onset_time"])
 
     return notes
 
 
-def test_quantization_with_synthetic_data():
-    """run quantization tests with synthetic data."""
-    print("generating synthetic performance data...")
-    np.random.seed(42)  # for reproducibility
+def test_quantization_with_real_midi():
+    """Run quantization tests with real MIDI data from the training set."""
+    midi_dir = Path("midi_data_repaired_cache")
 
-    notes = generate_synthetic_performance(
-        base_tempo=100,
-        num_measures=8,
-        humanize_std=12,
-    )
+    if not midi_dir.exists():
+        print(f"error: {midi_dir} not found")
+        return
 
-    print(f"generated {len(notes)} notes")
+    midi_files = get_midi_filepaths(midi_dir)
+    if not midi_files:
+        print(f"error: no MIDI files found in {midi_dir}")
+        return
 
-    # extract onset times
-    onset_times = [n["onset_time"] for n in notes]
+    # Use a fixed seed for reproducibility when selecting files
+    random.seed(42)
+    selected_files = random.sample(midi_files, min(3, len(midi_files)))
 
-    # test IOI calculation
-    print("\ncalculating inter-onset intervals...")
-    iois = calculate_inter_onset_intervals(onset_times)
-    print(f"  IOI stats: min={iois.min():.0f}, max={iois.max():.0f}, median={np.median(iois):.0f}")
-
-    # test common IOI detection
-    print("\nfinding common IOI values...")
-    common_iois = find_common_ioi_values(iois)
-    print(f"  common IOIs: {common_iois}")
-
-    # test density calculation
-    print("\ncalculating local density...")
-    densities = calculate_local_density(onset_times)
-    print(f"  density stats: min={densities.min():.1f}, max={densities.max():.1f}, mean={densities.mean():.1f}")
-
-    # test grid detection
-    print("\ndetecting grid from onsets...")
-    grid_times, grid_resolutions = detect_grid_from_onsets(onset_times)
-    print(f"  detected {len(grid_times)} grid points")
-    print(f"  grid resolution range: {min(grid_resolutions)} to {max(grid_resolutions)}")
-
-    # test quantization
-    print("\nquantizing to grid...")
-    quant_results = quantize_to_grid(onset_times, grid_times)
-
-    # analyze quality
-    print("\nanalyzing quantization quality...")
-    quality = analyze_quantization_quality(quant_results)
-    for key, value in quality.items():
-        if isinstance(value, float):
-            print(f"  {key}: {value:.2f}")
-        else:
-            print(f"  {key}: {value}")
-
-    # generate visualizations
     output_dir = Path("test_output")
     output_dir.mkdir(exist_ok=True)
 
-    print(f"\ngenerating visualizations in {output_dir}/...")
-    plot_quantization_analysis(
-        notes,
-        grid_times,
-        quant_results,
-        output_dir,
-        name="synthetic_test",
-    )
+    for midi_path in selected_files:
+        print(f"\n{'='*60}")
+        print(f"processing: {midi_path.name}")
+        print("=" * 60)
 
-    # also generate a zoomed view of first 2 measures
-    print("generating zoomed view...")
-    notes_with_offsets = []
-    for note, qr in zip(notes, quant_results):
-        note_copy = note.copy()
-        note_copy["time_offset"] = qr[2]
-        notes_with_offsets.append(note_copy)
+        try:
+            notes = load_notes_from_midi(midi_path)
+        except Exception as e:
+            print(f"  error loading file: {e}")
+            continue
 
-    plot_piano_roll_with_grid(
-        notes_with_offsets,
-        grid_times,
-        output_dir / "synthetic_test_zoomed.png",
-        time_range=(0, 800),
-        title="Piano Roll - First 2 Measures (Zoomed)",
-    )
+        if len(notes) < 10:
+            print(f"  skipping: only {len(notes)} notes")
+            continue
 
-    print("\ndone! check test_output/ for visualizations.")
+        print(f"loaded {len(notes)} notes")
+
+        # Extract onset times
+        onset_times = [n["onset_time"] for n in notes]
+
+        # Test IOI calculation
+        print("\ncalculating inter-onset intervals...")
+        iois = calculate_inter_onset_intervals(onset_times)
+        if len(iois) > 0:
+            print(f"  IOI stats: min={iois.min():.0f}, max={iois.max():.0f}, median={np.median(iois):.0f}")
+        else:
+            print("  no IOIs calculated")
+            continue
+
+        # Test common IOI detection
+        print("\nfinding common IOI values...")
+        common_iois = find_common_ioi_values(iois)
+        print(f"  common IOIs: {common_iois}")
+
+        # Test density calculation
+        print("\ncalculating local density...")
+        densities = calculate_local_density(onset_times)
+        print(f"  density stats: min={densities.min():.1f}, max={densities.max():.1f}, mean={densities.mean():.1f}")
+
+        # Test grid detection
+        print("\ndetecting grid from onsets...")
+        grid_times, grid_resolutions = detect_grid_from_onsets(onset_times)
+        print(f"  detected {len(grid_times)} grid points")
+        if grid_resolutions:
+            print(f"  grid resolution range: {min(grid_resolutions)} to {max(grid_resolutions)}")
+
+        # Test quantization
+        print("\nquantizing to grid...")
+        quant_results = quantize_to_grid(onset_times, grid_times)
+
+        # Analyze quality
+        print("\nanalyzing quantization quality...")
+        quality = analyze_quantization_quality(quant_results)
+        for key, value in quality.items():
+            if isinstance(value, float):
+                print(f"  {key}: {value:.2f}")
+            else:
+                print(f"  {key}: {value}")
+
+        # Generate visualizations
+        name = midi_path.stem
+        print(f"\ngenerating visualizations...")
+        plot_quantization_analysis(
+            notes,
+            grid_times,
+            quant_results,
+            output_dir,
+            name=name,
+        )
+
+        # Also generate a zoomed view of the first section
+        print("generating zoomed view...")
+        notes_with_offsets = []
+        for note, qr in zip(notes, quant_results):
+            note_copy = note.copy()
+            note_copy["time_offset"] = qr[2]
+            notes_with_offsets.append(note_copy)
+
+        # Zoom to first ~2000 ticks or so
+        min_time = min(n["onset_time"] for n in notes)
+        plot_piano_roll_with_grid(
+            notes_with_offsets,
+            grid_times,
+            output_dir / f"{name}_zoomed.png",
+            time_range=(min_time, min_time + 2000),
+            title=f"Piano Roll - {name} (Zoomed)",
+        )
+
+    print(f"\n{'='*60}")
+    print(f"done! check {output_dir}/ for visualizations.")
 
 
 if __name__ == "__main__":
-    test_quantization_with_synthetic_data()
+    test_quantization_with_real_midi()
