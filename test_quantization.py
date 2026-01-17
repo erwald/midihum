@@ -8,12 +8,12 @@ import random
 from pathlib import Path
 
 import numpy as np
+import matplotlib.pyplot as plt
 from mido import MidiFile
 
 from quantization import (
     calculate_inter_onset_intervals,
-    find_common_ioi_values,
-    calculate_local_density,
+    estimate_base_beat_duration,
     detect_grid_from_onsets,
     quantize_to_grid,
     analyze_quantization_quality,
@@ -22,14 +22,16 @@ from plotter import plot_piano_roll_with_grid, plot_quantization_analysis
 from midi_utility import get_note_tracks, get_midi_filepaths
 
 
-def load_notes_from_midi(midi_path: Path) -> list:
+def load_notes_from_midi(midi_path: Path) -> tuple:
     """
     Load notes from a MIDI file and return them in the format expected by plotting.
 
     Returns:
-        list of note dicts with onset_time, offset_time, pitch, velocity
+        tuple of (notes list, ticks_per_beat)
+        notes: list of note dicts with onset_time, offset_time, pitch, velocity
     """
     midi_file = MidiFile(midi_path)
+    ticks_per_beat = midi_file.ticks_per_beat
     tracks = get_note_tracks(midi_file)
 
     notes = []
@@ -62,7 +64,38 @@ def load_notes_from_midi(midi_path: Path) -> list:
     # Sort by onset time
     notes.sort(key=lambda n: n["onset_time"])
 
-    return notes
+    return notes, ticks_per_beat
+
+
+def plot_tempo_curve(
+    onset_times: list,
+    local_beats: list,
+    output_path: Path,
+    name: str = "analysis",
+):
+    """Plot the detected local tempo curve over time."""
+    fig, ax = plt.subplots(figsize=(14, 5))
+
+    times = np.array(onset_times)
+    beats = np.array(local_beats)
+
+    # Convert beat duration to BPM (assuming ticks_per_beat relationship)
+    # This is approximate - just for visualization
+    ax.plot(times, beats, 'b-', alpha=0.7, linewidth=1)
+    ax.scatter(times[::10], beats[::10], c='blue', s=10, alpha=0.5)
+
+    ax.set_xlabel("Time (MIDI ticks)")
+    ax.set_ylabel("Local beat duration (ticks)")
+    ax.set_title(f"Local Tempo Tracking - {name}")
+    ax.grid(True, alpha=0.3)
+
+    # Add secondary y-axis showing approximate BPM
+    # (assuming 480 ticks/beat at 120 BPM as reference)
+
+    plt.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+    print(f"  saved tempo curve to {output_path}")
 
 
 def test_quantization_with_real_midi():
@@ -91,7 +124,7 @@ def test_quantization_with_real_midi():
         print("=" * 60)
 
         try:
-            notes = load_notes_from_midi(midi_path)
+            notes, ticks_per_beat = load_notes_from_midi(midi_path)
         except Exception as e:
             print(f"  error loading file: {e}")
             continue
@@ -100,12 +133,12 @@ def test_quantization_with_real_midi():
             print(f"  skipping: only {len(notes)} notes")
             continue
 
-        print(f"loaded {len(notes)} notes")
+        print(f"loaded {len(notes)} notes (ticks_per_beat={ticks_per_beat})")
 
         # Extract onset times
         onset_times = [n["onset_time"] for n in notes]
 
-        # Test IOI calculation
+        # Calculate IOIs and estimate base beat
         print("\ncalculating inter-onset intervals...")
         iois = calculate_inter_onset_intervals(onset_times)
         if len(iois) > 0:
@@ -114,25 +147,27 @@ def test_quantization_with_real_midi():
             print("  no IOIs calculated")
             continue
 
-        # Test common IOI detection
-        print("\nfinding common IOI values...")
-        common_iois = find_common_ioi_values(iois)
-        print(f"  common IOIs: {common_iois}")
+        print("\nestimating base beat duration...")
+        base_beat = estimate_base_beat_duration(iois, ticks_per_beat)
+        print(f"  base beat: {base_beat} ticks")
 
-        # Test density calculation
-        print("\ncalculating local density...")
-        densities = calculate_local_density(onset_times)
-        print(f"  density stats: min={densities.min():.1f}, max={densities.max():.1f}, mean={densities.mean():.1f}")
-
-        # Test grid detection
-        print("\ndetecting grid from onsets...")
-        grid_times, grid_resolutions = detect_grid_from_onsets(onset_times)
+        # Detect adaptive grid with local tempo tracking
+        print("\ndetecting adaptive grid with local tempo tracking...")
+        grid_times, local_beats = detect_grid_from_onsets(
+            onset_times,
+            ticks_per_beat=ticks_per_beat,
+            subdivisions=4,  # sixteenth note grid
+            tempo_window=24,
+            tempo_smoothing=5.0,
+        )
         print(f"  detected {len(grid_times)} grid points")
-        if grid_resolutions:
-            print(f"  grid resolution range: {min(grid_resolutions)} to {max(grid_resolutions)}")
+        if local_beats:
+            local_beats_arr = np.array(local_beats)
+            print(f"  local beat range: {local_beats_arr.min():.0f} to {local_beats_arr.max():.0f} ticks")
+            print(f"  tempo variation: {local_beats_arr.std():.1f} ticks std")
 
-        # Test quantization
-        print("\nquantizing to grid...")
+        # Quantize to grid
+        print("\nquantizing to adaptive grid...")
         quant_results = quantize_to_grid(onset_times, grid_times)
 
         # Analyze quality
@@ -147,6 +182,16 @@ def test_quantization_with_real_midi():
         # Generate visualizations
         name = midi_path.stem
         print(f"\ngenerating visualizations...")
+
+        # Plot tempo curve
+        plot_tempo_curve(
+            onset_times,
+            local_beats,
+            output_dir / f"{name}_tempo.png",
+            name=name,
+        )
+
+        # Standard quantization analysis plots
         plot_quantization_analysis(
             notes,
             grid_times,
@@ -155,7 +200,7 @@ def test_quantization_with_real_midi():
             name=name,
         )
 
-        # Also generate a zoomed view of the first section
+        # Generate zoomed view of first section
         print("generating zoomed view...")
         notes_with_offsets = []
         for note, qr in zip(notes, quant_results):
@@ -163,14 +208,15 @@ def test_quantization_with_real_midi():
             note_copy["time_offset"] = qr[2]
             notes_with_offsets.append(note_copy)
 
-        # Zoom to first ~2000 ticks or so
+        # Zoom to first few beats worth of music
         min_time = min(n["onset_time"] for n in notes)
+        zoom_duration = base_beat * 8  # ~2 measures
         plot_piano_roll_with_grid(
             notes_with_offsets,
             grid_times,
             output_dir / f"{name}_zoomed.png",
-            time_range=(min_time, min_time + 2000),
-            title=f"Piano Roll - {name} (Zoomed)",
+            time_range=(min_time, min_time + zoom_duration),
+            title=f"Piano Roll - {name} (Zoomed, ~2 measures)",
         )
 
     print(f"\n{'='*60}")

@@ -1,16 +1,18 @@
-"""unit tests for quantization module."""
+"""Unit tests for quantization module."""
 
 import pytest
 import numpy as np
 
 from quantization import (
     calculate_inter_onset_intervals,
-    find_common_ioi_values,
-    calculate_local_density,
-    select_grid_resolution,
+    estimate_base_beat_duration,
+    detect_local_tempo,
+    generate_adaptive_grid,
     detect_grid_from_onsets,
     quantize_to_grid,
+    quantize_to_adaptive_grid,
     analyze_quantization_quality,
+    calculate_local_density,
 )
 
 
@@ -33,134 +35,160 @@ class TestCalculateInterOnsetIntervals:
         np.testing.assert_array_equal(result, [50, 100, 50])
 
     def test_preserves_order(self):
-        """iois should be in order of consecutive onset times"""
+        """IOIs should be in order of consecutive onset times"""
         result = calculate_inter_onset_intervals([0, 10, 30, 60])
         np.testing.assert_array_equal(result, [10, 20, 30])
 
 
-class TestFindCommonIoiValues:
+class TestEstimateBaseBeatDuration:
     def test_empty_array(self):
-        result = find_common_ioi_values(np.array([]))
-        assert result == []
+        result = estimate_base_beat_duration(np.array([]), ticks_per_beat=480)
+        assert result == 480  # fallback to ticks_per_beat
 
-    def test_all_below_min_ioi(self):
-        result = find_common_ioi_values(np.array([1, 2, 3, 4, 5]), min_ioi=10)
-        assert result == []
+    def test_uniform_iois(self):
+        """Uniform IOIs should detect that duration"""
+        iois = np.array([120] * 50)
+        result = estimate_base_beat_duration(iois, ticks_per_beat=480)
+        # Should be close to 120 or a multiple/divisor
+        assert result in [120, 240, 480]
 
-    def test_single_common_value(self):
-        """repeated values should be detected as common"""
-        iois = np.array([100, 100, 100, 100, 100, 100, 100, 100])
-        result = find_common_ioi_values(iois)
-        assert len(result) >= 1
-        # the most common IOI should be around 100
-        assert any(90 <= v <= 110 for v in result)
+    def test_filters_very_short_intervals(self):
+        """Very short intervals should be filtered out"""
+        # Mix of very short (5) and regular (240) intervals
+        iois = np.array([5] * 10 + [240] * 50)
+        result = estimate_base_beat_duration(iois, ticks_per_beat=480)
+        # Should detect 240, not 5
+        assert result >= 60  # at least 32nd note
 
-    def test_multiple_common_values(self):
-        """different rhythmic values should all be detected"""
-        # simulate quarter notes (100) and eighth notes (50)
-        iois = np.array([100] * 20 + [50] * 20)
-        result = find_common_ioi_values(iois)
-        # should detect both rhythmic values (within bin tolerance)
-        assert len(result) >= 1
+    def test_standard_subdivisions(self):
+        """Result should snap to standard subdivision"""
+        # IOIs around quarter note length
+        iois = np.array([475, 485, 480, 470, 490] * 10)
+        result = estimate_base_beat_duration(iois, ticks_per_beat=480)
+        # Should snap to 480 (quarter note)
+        assert result == 480
 
 
-class TestCalculateLocalDensity:
-    def test_empty_list(self):
-        result = calculate_local_density([])
-        assert len(result) == 0
+class TestDetectLocalTempo:
+    def test_constant_tempo(self):
+        """Constant IOIs should give constant tempo"""
+        onsets = list(range(0, 5000, 100))  # every 100 ticks
+        base_beat = 100
+        result = detect_local_tempo(onsets, base_beat, window_size=8, smoothing=0)
+
+        # All local beats should be close to base_beat
+        assert all(80 <= b <= 120 for b in result)
+
+    def test_tempo_change(self):
+        """Should detect tempo changes"""
+        # First half: slow (200 tick IOI), second half: fast (100 tick IOI)
+        slow_part = list(range(0, 2000, 200))
+        fast_part = list(range(2000, 4000, 100))
+        onsets = slow_part + fast_part
+        base_beat = 150
+
+        result = detect_local_tempo(onsets, base_beat, window_size=8, smoothing=1.0)
+
+        # Early tempo should be slower than late tempo
+        early_avg = np.mean(result[:len(slow_part)//2])
+        late_avg = np.mean(result[-len(fast_part)//2:])
+        assert early_avg > late_avg
 
     def test_single_note(self):
-        result = calculate_local_density([100])
+        """Single note should return base beat"""
+        result = detect_local_tempo([100], 480, window_size=8, smoothing=0)
         assert len(result) == 1
-        assert result[0] == 1  # just itself in the window
-
-    def test_sparse_notes(self):
-        """notes far apart should have low density"""
-        result = calculate_local_density([0, 1000, 2000], window_size=100)
-        assert all(d == 1 for d in result)
-
-    def test_dense_notes(self):
-        """notes close together should have high density"""
-        result = calculate_local_density([0, 10, 20, 30, 40], window_size=100)
-        # middle notes should see all 5 notes in their window
-        assert result[2] == 5
-
-    def test_density_varies(self):
-        """density should vary based on local context"""
-        # sparse at start, dense in middle
-        notes = [0, 500, 1000, 1010, 1020, 1030, 1040, 1500]
-        result = calculate_local_density(notes, window_size=100)
-        # first note is isolated
-        assert result[0] < result[4]  # middle of dense passage has higher density
+        assert result[0] == 480
 
 
-class TestSelectGridResolution:
-    def test_empty_common_iois(self):
-        result = select_grid_resolution(10.0, [])
-        assert result == 100  # fallback default
+class TestGenerateAdaptiveGrid:
+    def test_empty_input(self):
+        result = generate_adaptive_grid([], np.array([]), subdivisions=4)
+        assert result == []
 
-    def test_high_density_uses_finest_grid(self):
-        result = select_grid_resolution(20.0, [25, 50, 100], density_thresholds=(5, 15))
-        assert result == 25  # finest grid
+    def test_single_point(self):
+        result = generate_adaptive_grid([100], np.array([480]), subdivisions=4)
+        assert 100 in result
 
-    def test_low_density_uses_coarsest_grid(self):
-        result = select_grid_resolution(3.0, [25, 50, 100], density_thresholds=(5, 15))
-        assert result == 100  # coarsest grid
+    def test_grid_covers_range(self):
+        """Grid should cover from min to approximately max onset"""
+        onsets = [0, 1000, 2000]
+        local_beats = np.array([480, 480, 480])
+        result = generate_adaptive_grid(onsets, local_beats, subdivisions=4)
 
-    def test_medium_density_uses_middle_grid(self):
-        result = select_grid_resolution(10.0, [25, 50, 100], density_thresholds=(5, 15))
-        assert result == 50  # middle grid
+        assert min(result) <= 0
+        # Grid may stop slightly before last onset (within one subdivision)
+        assert max(result) >= 2000 - 480 // 4
+
+    def test_subdivision_spacing(self):
+        """Grid spacing should be beat / subdivisions"""
+        onsets = [0, 1920]  # 4 beats at 480 ticks
+        local_beats = np.array([480, 480])
+        result = generate_adaptive_grid(onsets, local_beats, subdivisions=4)
+
+        # Spacing should be 480/4 = 120
+        if len(result) > 1:
+            spacings = np.diff(result)
+            assert all(110 <= s <= 130 for s in spacings[:5])
 
 
 class TestDetectGridFromOnsets:
     def test_empty_list(self):
-        grid, resolutions = detect_grid_from_onsets([])
+        grid, local_beats = detect_grid_from_onsets([])
         assert grid == []
-        assert resolutions == []
+        assert local_beats == []
 
     def test_single_note(self):
-        grid, resolutions = detect_grid_from_onsets([100])
+        grid, local_beats = detect_grid_from_onsets([100])
         assert grid == [100]
-        assert resolutions == [0]
+        assert len(local_beats) == 1
 
     def test_returns_grid_covering_all_notes(self):
-        """grid should cover from min to max onset time"""
+        """Grid should cover from min to max onset time"""
         onsets = [0, 100, 200, 300, 400]
-        grid, resolutions = detect_grid_from_onsets(onsets)
+        grid, local_beats = detect_grid_from_onsets(onsets)
         assert min(grid) <= 0
         assert max(grid) >= 400
 
-    def test_grid_resolution_matches_onset_count(self):
-        """should return one resolution per onset"""
+    def test_local_beats_length_matches_onsets(self):
+        """Should return one local beat per onset"""
         onsets = [0, 100, 200, 300]
-        grid, resolutions = detect_grid_from_onsets(onsets)
-        assert len(resolutions) == len(onsets)
+        grid, local_beats = detect_grid_from_onsets(onsets)
+        assert len(local_beats) == len(onsets)
 
 
 class TestQuantizeToGrid:
     def test_empty_grid(self):
         result = quantize_to_grid([100, 200], [])
-        # should return same times with 0 offset
+        # Should return same times with 0 offset
         assert result == [(100, 100, 0), (200, 200, 0)]
 
     def test_exact_grid_match(self):
-        """notes on grid points should have 0 offset"""
+        """Notes on grid points should have 0 offset"""
         result = quantize_to_grid([0, 100, 200], [0, 100, 200])
         for actual, quantized, offset in result:
             assert actual == quantized
             assert offset == 0
 
     def test_snaps_to_nearest_grid(self):
-        """notes should snap to nearest grid point"""
+        """Notes should snap to nearest grid point"""
         result = quantize_to_grid([95, 105], [0, 100, 200])
         assert result[0] == (95, 100, -5)  # snaps to 100, offset is -5
         assert result[1] == (105, 100, 5)  # snaps to 100, offset is +5
 
     def test_offset_sign_convention(self):
-        """positive offset = late, negative offset = early"""
+        """Positive offset = late, negative offset = early"""
         result = quantize_to_grid([90, 110], [100])
         assert result[0][2] < 0  # 90 is early (before 100)
         assert result[1][2] > 0  # 110 is late (after 100)
+
+
+class TestQuantizeToAdaptiveGrid:
+    def test_max_offset_clipping(self):
+        """Offsets should be clipped when max_offset is set"""
+        result = quantize_to_adaptive_grid([50, 150], [100], max_offset=10)
+        assert result[0][2] == -10  # clipped from -50
+        assert result[1][2] == 10   # clipped from 50
 
 
 class TestAnalyzeQuantizationQuality:
@@ -179,13 +207,50 @@ class TestAnalyzeQuantizationQuality:
         assert stats["max_offset"] == 5
 
     def test_all_positive_offsets(self):
-        """all late notes should have positive mean"""
+        """All late notes should have positive mean"""
         results = [(i, i, 10) for i in range(10)]
         stats = analyze_quantization_quality(results)
         assert stats["mean_offset"] == 10.0
 
     def test_mean_abs_offset(self):
-        """mean absolute offset should ignore sign"""
+        """Mean absolute offset should ignore sign"""
         results = [(0, 0, -10), (100, 100, 10)]
         stats = analyze_quantization_quality(results)
         assert stats["mean_abs_offset"] == 10.0
+
+    def test_percentiles(self):
+        """Should include 5th and 95th percentiles"""
+        results = [(i, i, i - 50) for i in range(100)]  # offsets from -50 to 49
+        stats = analyze_quantization_quality(results)
+        assert "percentile_5" in stats
+        assert "percentile_95" in stats
+
+
+class TestCalculateLocalDensity:
+    def test_empty_list(self):
+        result = calculate_local_density([])
+        assert len(result) == 0
+
+    def test_single_note(self):
+        result = calculate_local_density([100])
+        assert len(result) == 1
+        assert result[0] == 1  # just itself in the window
+
+    def test_sparse_notes(self):
+        """Notes far apart should have low density"""
+        result = calculate_local_density([0, 1000, 2000], window_size=100)
+        assert all(d == 1 for d in result)
+
+    def test_dense_notes(self):
+        """Notes close together should have high density"""
+        result = calculate_local_density([0, 10, 20, 30, 40], window_size=100)
+        # middle notes should see all 5 notes in their window
+        assert result[2] == 5
+
+    def test_density_varies(self):
+        """Density should vary based on local context"""
+        # sparse at start, dense in middle
+        notes = [0, 500, 1000, 1010, 1020, 1030, 1040, 1500]
+        result = calculate_local_density(notes, window_size=100)
+        # first note is isolated
+        assert result[0] < result[4]  # middle of dense passage has higher density
