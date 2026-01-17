@@ -1,249 +1,169 @@
 """
-Local beat tracking and quantization for time displacement training.
+Cluster-based quantization for time displacement training.
 
-This module detects the underlying rhythmic grid from expressive piano performances
-using local tempo tracking that adapts to rubato and tempo changes.
+This module detects chord/simultaneous-note clusters in expressive piano performances
+and measures timing offsets relative to cluster centroids. This provides reliable
+ground-truth for training a time displacement model.
+
+The key insight: notes that are "meant" to be simultaneous (chords, etc.) get spread
+slightly in human performance. The cluster centroid represents the "intended" beat
+position, and individual note offsets represent expressive timing.
 """
 
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
+from dataclasses import dataclass
 
 import numpy as np
-from scipy import signal
-from scipy.ndimage import gaussian_filter1d
 
 
-def calculate_inter_onset_intervals(onset_times: List[int]) -> np.ndarray:
-    """
-    Calculate inter-onset intervals (IOI) between consecutive note onsets.
-
-    Args:
-        onset_times: sorted list of note onset times in MIDI ticks
-
-    Returns:
-        array of IOI values (length = len(onset_times) - 1)
-    """
-    if len(onset_times) < 2:
-        return np.array([])
-
-    times = np.array(onset_times)
-    return np.diff(times)
+@dataclass
+class NoteWithOffset:
+    """A note with its timing offset from the cluster centroid."""
+    onset_time: int
+    pitch: int
+    velocity: int
+    offset_time: Optional[int]
+    cluster_id: int
+    cluster_centroid: float
+    time_offset: float  # onset_time - cluster_centroid
+    cluster_size: int  # number of notes in this cluster
+    position_in_cluster: int  # 0 = earliest in cluster, 1 = second earliest, etc.
 
 
-def estimate_base_beat_duration(iois: np.ndarray, ticks_per_beat: int = 480) -> int:
-    """
-    Estimate the most likely beat duration from IOI distribution.
-
-    Uses histogram clustering to find the dominant rhythmic unit,
-    looking for common subdivisions (quarter, eighth, sixteenth notes).
-
-    Args:
-        iois: array of inter-onset intervals
-        ticks_per_beat: MIDI ticks per beat (commonly 480 or 960)
-
-    Returns:
-        estimated beat duration in ticks
-    """
-    if len(iois) == 0:
-        return ticks_per_beat
-
-    # Filter out very short intervals (simultaneous notes, grace notes)
-    # and very long intervals (pauses)
-    min_ioi = ticks_per_beat // 8  # 32nd note
-    max_ioi = ticks_per_beat * 4   # whole note
-    filtered = iois[(iois >= min_ioi) & (iois <= max_ioi)]
-
-    if len(filtered) == 0:
-        return ticks_per_beat
-
-    # Create histogram with fine bins
-    bin_width = ticks_per_beat // 16
-    bins = np.arange(min_ioi, max_ioi + bin_width, bin_width)
-    hist, bin_edges = np.histogram(filtered, bins=bins)
-
-    # Smooth histogram
-    hist_smooth = gaussian_filter1d(hist.astype(float), sigma=2)
-
-    # Find peaks
-    peaks, _ = signal.find_peaks(hist_smooth, height=np.max(hist_smooth) * 0.1)
-
-    if len(peaks) == 0:
-        return int(np.median(filtered))
-
-    # Get the most prominent peak
-    peak_heights = hist_smooth[peaks]
-    best_peak = peaks[np.argmax(peak_heights)]
-    estimated_ioi = int(bin_edges[best_peak] + bin_width / 2)
-
-    # Round to nearest standard subdivision
-    subdivisions = [
-        ticks_per_beat // 4,   # sixteenth
-        ticks_per_beat // 3,   # triplet eighth
-        ticks_per_beat // 2,   # eighth
-        ticks_per_beat * 2 // 3,  # triplet quarter
-        ticks_per_beat,        # quarter
-        ticks_per_beat * 2,    # half
-    ]
-
-    # Find closest standard subdivision
-    closest = min(subdivisions, key=lambda x: abs(x - estimated_ioi))
-    return closest
-
-
-def detect_local_tempo(
+def cluster_onsets_by_proximity(
     onset_times: List[int],
-    base_beat: int,
-    window_size: int = 16,
-    smoothing: float = 2.0,
-) -> np.ndarray:
+    gap_threshold: int = 20,
+) -> List[List[int]]:
     """
-    Estimate local tempo at each note onset using windowed IOI analysis.
+    Group note onsets into clusters based on temporal proximity.
 
-    This allows the tempo to vary smoothly over time, handling rubato.
+    Notes within gap_threshold ticks of each other are considered
+    "simultaneous" (part of the same chord or beat).
 
     Args:
         onset_times: sorted list of note onset times
-        base_beat: estimated base beat duration
-        window_size: number of notes to consider for local tempo
-        smoothing: gaussian smoothing sigma for tempo curve
+        gap_threshold: max gap between consecutive notes in same cluster (ticks)
 
     Returns:
-        array of local beat durations at each onset
+        list of clusters, where each cluster is a list of onset times
     """
-    if len(onset_times) < 2:
-        return np.array([base_beat] * len(onset_times))
-
-    times = np.array(onset_times)
-    iois = np.diff(times)
-    n_notes = len(times)
-
-    # For each note, estimate local tempo from surrounding IOIs
-    local_beats = np.zeros(n_notes)
-
-    for i in range(n_notes):
-        # Get window of IOIs around this note
-        start_idx = max(0, i - window_size // 2)
-        end_idx = min(len(iois), i + window_size // 2)
-
-        if end_idx <= start_idx:
-            local_beats[i] = base_beat
-            continue
-
-        window_iois = iois[start_idx:end_idx]
-
-        # Filter to reasonable range (0.5x to 2x base beat for subdivisions)
-        min_ioi = base_beat // 4
-        max_ioi = base_beat * 2
-        valid_iois = window_iois[(window_iois >= min_ioi) & (window_iois <= max_ioi)]
-
-        if len(valid_iois) == 0:
-            local_beats[i] = base_beat
-            continue
-
-        # Use median IOI as local tempo estimate
-        # Quantize to subdivision level
-        median_ioi = np.median(valid_iois)
-
-        # Determine which subdivision this represents
-        # and extrapolate to beat level
-        subdivisions = [1/4, 1/3, 1/2, 2/3, 1, 2]
-        best_subdiv = min(subdivisions, key=lambda s: abs(median_ioi - base_beat * s))
-        local_beats[i] = median_ioi / best_subdiv
-
-    # Smooth the tempo curve
-    if smoothing > 0 and len(local_beats) > 1:
-        local_beats = gaussian_filter1d(local_beats, sigma=smoothing)
-
-    return local_beats
-
-
-def generate_adaptive_grid(
-    onset_times: List[int],
-    local_beats: np.ndarray,
-    subdivisions: int = 4,
-) -> List[int]:
-    """
-    Generate a grid that adapts to local tempo changes.
-
-    Args:
-        onset_times: sorted list of note onset times
-        local_beats: local beat duration at each onset
-        subdivisions: grid subdivisions per beat (4 = sixteenth notes)
-
-    Returns:
-        list of grid point times
-    """
-    if len(onset_times) == 0:
+    if not onset_times:
         return []
 
-    times = np.array(onset_times)
-    min_time = times.min()
-    max_time = times.max()
+    clusters = []
+    current_cluster = [onset_times[0]]
 
-    # Interpolate local beats to create continuous tempo function
-    if len(times) > 1:
-        # Create interpolation function
-        from scipy.interpolate import interp1d
-        tempo_func = interp1d(
-            times, local_beats,
-            kind='linear',
-            bounds_error=False,
-            fill_value=(local_beats[0], local_beats[-1])
-        )
-    else:
-        tempo_func = lambda t: local_beats[0]
+    for t in onset_times[1:]:
+        if t - current_cluster[-1] <= gap_threshold:
+            current_cluster.append(t)
+        else:
+            clusters.append(current_cluster)
+            current_cluster = [t]
+    clusters.append(current_cluster)
 
-    # Generate grid by walking through time with adaptive step size
-    grid_times = []
-    current_time = min_time
-
-    while current_time <= max_time:
-        grid_times.append(int(current_time))
-
-        # Get local beat duration and step by subdivision
-        local_beat = tempo_func(current_time)
-        step = local_beat / subdivisions
-        current_time += step
-
-    return grid_times
+    return clusters
 
 
-def quantize_to_adaptive_grid(
-    onset_times: List[int],
-    grid_times: List[int],
-    max_offset: Optional[int] = None,
-) -> List[Tuple[int, int, int]]:
+def compute_cluster_centroids(clusters: List[List[int]]) -> np.ndarray:
+    """Compute the centroid (mean time) of each cluster."""
+    return np.array([np.mean(c) for c in clusters])
+
+
+def quantize_notes_to_clusters(
+    notes: List[dict],
+    gap_threshold: int = 20,
+) -> Tuple[List[NoteWithOffset], Dict]:
     """
-    Snap each onset to nearest grid point and calculate offset.
+    Quantize notes using cluster-centroid method.
+
+    For each note, find its cluster and compute offset from cluster centroid.
+    This gives meaningful offsets for notes in multi-note clusters (chords).
 
     Args:
-        onset_times: list of actual note onset times
-        grid_times: list of grid point times
-        max_offset: if set, clip offsets to this range (helps with outliers)
+        notes: list of note dicts with onset_time, pitch, velocity, offset_time
+        gap_threshold: max gap for clustering (ticks)
 
     Returns:
-        list of (actual_time, quantized_time, offset) tuples
-        where offset = actual_time - quantized_time
+        tuple of:
+        - list of NoteWithOffset objects
+        - dict of statistics about the quantization
     """
-    if not grid_times:
-        return [(t, t, 0) for t in onset_times]
+    if not notes:
+        return [], {}
 
-    grid = np.array(grid_times)
+    # Sort notes by onset time
+    sorted_notes = sorted(notes, key=lambda n: n["onset_time"])
+    onset_times = [n["onset_time"] for n in sorted_notes]
+
+    # Find clusters
+    clusters = cluster_onsets_by_proximity(onset_times, gap_threshold)
+    centroids = compute_cluster_centroids(clusters)
+
+    # Map each onset time to its cluster
+    onset_to_cluster = {}
+    for cluster_id, cluster in enumerate(clusters):
+        for t in cluster:
+            onset_to_cluster[t] = cluster_id
+
+    # Create NoteWithOffset for each note
     results = []
+    for note in sorted_notes:
+        t = note["onset_time"]
+        cluster_id = onset_to_cluster[t]
+        cluster = clusters[cluster_id]
+        centroid = centroids[cluster_id]
 
-    for actual_time in onset_times:
-        # Find nearest grid point
-        distances = np.abs(grid - actual_time)
-        nearest_idx = np.argmin(distances)
-        quantized_time = grid[nearest_idx]
-        offset = actual_time - quantized_time
+        # Position in cluster (sorted by time)
+        sorted_cluster = sorted(cluster)
+        position = sorted_cluster.index(t)
 
-        # Optionally clip offset
-        if max_offset is not None:
-            offset = np.clip(offset, -max_offset, max_offset)
+        results.append(NoteWithOffset(
+            onset_time=t,
+            pitch=note["pitch"],
+            velocity=note["velocity"],
+            offset_time=note.get("offset_time"),
+            cluster_id=cluster_id,
+            cluster_centroid=centroid,
+            time_offset=t - centroid,
+            cluster_size=len(cluster),
+            position_in_cluster=position,
+        ))
 
-        results.append((actual_time, int(quantized_time), int(offset)))
+    # Compute statistics
+    all_offsets = np.array([n.time_offset for n in results])
+    multi_note_offsets = np.array([n.time_offset for n in results if n.cluster_size > 1])
 
-    return results
+    stats = {
+        "num_notes": len(results),
+        "num_clusters": len(clusters),
+        "multi_note_clusters": sum(1 for c in clusters if len(c) > 1),
+        "single_note_clusters": sum(1 for c in clusters if len(c) == 1),
+        "notes_in_multi_clusters": len(multi_note_offsets),
+        "pct_in_multi_clusters": len(multi_note_offsets) / len(results) * 100 if results else 0,
+        "all_offset_std": float(np.std(all_offsets)) if len(all_offsets) > 0 else 0,
+        "all_offset_range": (int(np.min(all_offsets)), int(np.max(all_offsets))) if len(all_offsets) > 0 else (0, 0),
+        "multi_offset_std": float(np.std(multi_note_offsets)) if len(multi_note_offsets) > 0 else 0,
+        "multi_offset_range": (int(np.min(multi_note_offsets)), int(np.max(multi_note_offsets))) if len(multi_note_offsets) > 0 else (0, 0),
+    }
+
+    return results, stats
+
+
+def get_cluster_grid(clusters: List[List[int]]) -> List[int]:
+    """
+    Get grid points from cluster centroids.
+
+    Returns the centroid of each cluster as a grid point.
+    """
+    return [int(np.mean(c)) for c in clusters]
+
+
+# Legacy API compatibility
+def calculate_inter_onset_intervals(onset_times: List[int]) -> np.ndarray:
+    """Calculate inter-onset intervals between consecutive note onsets."""
+    if len(onset_times) < 2:
+        return np.array([])
+    return np.diff(np.array(onset_times))
 
 
 def detect_grid_from_onsets(
@@ -252,45 +172,30 @@ def detect_grid_from_onsets(
     subdivisions: int = 4,
     tempo_window: int = 16,
     tempo_smoothing: float = 3.0,
-) -> Tuple[List[int], List[int]]:
+) -> Tuple[List[int], List[float]]:
     """
-    Detect adaptive rhythmic grid from note onset times.
+    Detect grid from note onsets using cluster-centroid method.
 
-    This is the main entry point for grid detection. It:
-    1. Estimates base beat duration from IOI distribution
-    2. Tracks local tempo variations (handles rubato)
-    3. Generates an adaptive grid that follows tempo changes
-
-    Args:
-        onset_times: sorted list of note onset times in MIDI ticks
-        ticks_per_beat: MIDI ticks per beat (for reference subdivisions)
-        subdivisions: grid subdivisions per beat
-        tempo_window: notes to consider for local tempo
-        tempo_smoothing: gaussian smoothing for tempo curve
-
-    Returns:
-        tuple of (grid_times, local_beats):
-        - grid_times: list of grid point times
-        - local_beats: list of local beat duration at each onset
+    Returns cluster centroids as grid points and cluster sizes as "local beats".
     """
     if len(onset_times) < 2:
-        return list(onset_times), [ticks_per_beat] * len(onset_times)
+        return list(onset_times), [float(ticks_per_beat)] * len(onset_times)
 
-    # Step 1: Estimate base beat duration
-    iois = calculate_inter_onset_intervals(onset_times)
-    base_beat = estimate_base_beat_duration(iois, ticks_per_beat)
+    clusters = cluster_onsets_by_proximity(onset_times, gap_threshold=20)
+    centroids = compute_cluster_centroids(clusters)
 
-    # Step 2: Track local tempo variations
-    local_beats = detect_local_tempo(
-        onset_times, base_beat,
-        window_size=tempo_window,
-        smoothing=tempo_smoothing,
-    )
+    # Map each onset to its cluster's centroid and size
+    onset_to_cluster = {}
+    for cluster_id, cluster in enumerate(clusters):
+        for t in cluster:
+            onset_to_cluster[t] = cluster_id
 
-    # Step 3: Generate adaptive grid
-    grid_times = generate_adaptive_grid(onset_times, local_beats, subdivisions)
+    local_values = []
+    for t in onset_times:
+        cluster_id = onset_to_cluster[t]
+        local_values.append(float(len(clusters[cluster_id])))
 
-    return grid_times, local_beats.tolist()
+    return [int(c) for c in centroids], local_values
 
 
 def quantize_to_grid(
@@ -300,30 +205,33 @@ def quantize_to_grid(
     """
     Snap each onset to nearest grid point and calculate offset.
 
-    Convenience wrapper for quantize_to_adaptive_grid.
-
     Args:
         onset_times: list of actual note onset times
-        grid_times: list of grid point times
+        grid_times: list of grid point times (cluster centroids)
 
     Returns:
         list of (actual_time, quantized_time, offset) tuples
     """
-    return quantize_to_adaptive_grid(onset_times, grid_times)
+    if not grid_times:
+        return [(t, t, 0) for t in onset_times]
+
+    grid = np.array(grid_times)
+    results = []
+
+    for actual_time in onset_times:
+        distances = np.abs(grid - actual_time)
+        nearest_idx = np.argmin(distances)
+        quantized_time = grid[nearest_idx]
+        offset = actual_time - quantized_time
+        results.append((actual_time, int(quantized_time), int(offset)))
+
+    return results
 
 
 def analyze_quantization_quality(
     quantization_results: List[Tuple[int, int, int]]
 ) -> dict:
-    """
-    Analyze the quality of quantization results.
-
-    Args:
-        quantization_results: list of (actual_time, quantized_time, offset) tuples
-
-    Returns:
-        dict with statistics about the quantization
-    """
+    """Analyze the quality of quantization results."""
     if not quantization_results:
         return {}
 
@@ -342,13 +250,12 @@ def analyze_quantization_quality(
     }
 
 
-# Legacy exports for compatibility
-def find_common_ioi_values(iois: np.ndarray, num_peaks: int = 5, min_ioi: int = 10) -> List[int]:
-    """Legacy function - use estimate_base_beat_duration instead."""
+# Keep these for backward compatibility
+def estimate_base_beat_duration(iois: np.ndarray, ticks_per_beat: int = 480) -> int:
+    """Estimate base beat duration from IOI distribution."""
     if len(iois) == 0:
-        return []
-    base = estimate_base_beat_duration(iois)
-    return [base // 4, base // 2, base]
+        return ticks_per_beat
+    return int(np.median(iois[iois >= ticks_per_beat // 8]))
 
 
 def calculate_local_density(onset_times: List[int], window_size: int = 500) -> np.ndarray:

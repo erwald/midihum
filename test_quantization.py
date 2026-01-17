@@ -1,5 +1,5 @@
 """
-Test script for quantization and visualization using real MIDI data.
+Test script for cluster-based quantization using real MIDI data.
 
 Run with: python test_quantization.py
 """
@@ -12,11 +12,9 @@ import matplotlib.pyplot as plt
 from mido import MidiFile
 
 from quantization import (
-    calculate_inter_onset_intervals,
-    estimate_base_beat_duration,
-    detect_grid_from_onsets,
-    quantize_to_grid,
-    analyze_quantization_quality,
+    quantize_notes_to_clusters,
+    cluster_onsets_by_proximity,
+    compute_cluster_centroids,
 )
 from plotter import plot_piano_roll_with_grid, plot_quantization_analysis
 from midi_utility import get_note_tracks, get_midi_filepaths
@@ -24,82 +22,100 @@ from midi_utility import get_note_tracks, get_midi_filepaths
 
 def load_notes_from_midi(midi_path: Path) -> tuple:
     """
-    Load notes from a MIDI file and return them in the format expected by plotting.
+    Load notes from a MIDI file.
 
     Returns:
         tuple of (notes list, ticks_per_beat)
-        notes: list of note dicts with onset_time, offset_time, pitch, velocity
     """
     midi_file = MidiFile(midi_path)
     ticks_per_beat = midi_file.ticks_per_beat
     tracks = get_note_tracks(midi_file)
 
     notes = []
-    # Track active notes to pair note_on with note_off
-    active_notes = {}  # (track_idx, pitch) -> note_dict
+    active_notes = {}
 
     for track in tracks:
         for event in track.note_events:
             key = (track.index, event.note)
 
             if event.type == "note_on" and event.velocity > 0:
-                # Start of a note
                 active_notes[key] = {
                     "onset_time": event.time,
                     "pitch": event.note,
                     "velocity": event.velocity,
                 }
             elif event.type == "note_off" or (event.type == "note_on" and event.velocity == 0):
-                # End of a note
                 if key in active_notes:
                     note = active_notes.pop(key)
                     note["offset_time"] = event.time
                     notes.append(note)
 
-    # Handle any notes that didn't get a note_off (add default duration)
     for note in active_notes.values():
         note["offset_time"] = note["onset_time"] + 100
         notes.append(note)
 
-    # Sort by onset time
     notes.sort(key=lambda n: n["onset_time"])
-
     return notes, ticks_per_beat
 
 
-def plot_tempo_curve(
-    onset_times: list,
-    local_beats: list,
-    output_path: Path,
-    name: str = "analysis",
-):
-    """Plot the detected local tempo curve over time."""
-    fig, ax = plt.subplots(figsize=(14, 5))
+def plot_cluster_analysis(notes_with_offsets, stats, output_dir, name):
+    """Generate plots for cluster-based quantization analysis."""
 
-    times = np.array(onset_times)
-    beats = np.array(local_beats)
+    # Separate multi-note and single-note cluster offsets
+    all_offsets = np.array([n.time_offset for n in notes_with_offsets])
+    multi_offsets = np.array([n.time_offset for n in notes_with_offsets if n.cluster_size > 1])
 
-    # Convert beat duration to BPM (assuming ticks_per_beat relationship)
-    # This is approximate - just for visualization
-    ax.plot(times, beats, 'b-', alpha=0.7, linewidth=1)
-    ax.scatter(times[::10], beats[::10], c='blue', s=10, alpha=0.5)
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-    ax.set_xlabel("Time (MIDI ticks)")
-    ax.set_ylabel("Local beat duration (ticks)")
-    ax.set_title(f"Local Tempo Tracking - {name}")
-    ax.grid(True, alpha=0.3)
+    # Plot 1: All offsets
+    ax1 = axes[0]
+    if len(all_offsets) > 0:
+        bins = range(int(all_offsets.min()) - 1, int(all_offsets.max()) + 2)
+        ax1.hist(all_offsets, bins=bins, edgecolor='black', alpha=0.7)
+        ax1.axvline(x=0, color='red', linestyle='--', linewidth=2, label='Centroid')
+        ax1.set_xlabel('Offset from cluster centroid (ticks)')
+        ax1.set_ylabel('Count')
+        ax1.set_title(f'All notes (n={len(all_offsets)})\nstd={all_offsets.std():.1f}')
+        ax1.legend()
 
-    # Add secondary y-axis showing approximate BPM
-    # (assuming 480 ticks/beat at 120 BPM as reference)
+    # Plot 2: Multi-note clusters only (chord spread)
+    ax2 = axes[1]
+    if len(multi_offsets) > 0:
+        bins = range(int(multi_offsets.min()) - 1, int(multi_offsets.max()) + 2)
+        ax2.hist(multi_offsets, bins=bins, edgecolor='black', alpha=0.7, color='green')
+        ax2.axvline(x=0, color='red', linestyle='--', linewidth=2, label='Centroid')
+        ax2.set_xlabel('Offset from cluster centroid (ticks)')
+        ax2.set_ylabel('Count')
+        pct = stats['pct_in_multi_clusters']
+        ax2.set_title(f'Multi-note clusters only (n={len(multi_offsets)}, {pct:.0f}% of notes)\nstd={multi_offsets.std():.1f}')
+        ax2.legend()
+
+    plt.suptitle(f'Cluster-based Quantization - {name}', fontsize=12)
+    plt.tight_layout()
+    fig.savefig(output_dir / f'{name}_cluster_analysis.png', dpi=150)
+    plt.close(fig)
+    print(f"  saved cluster analysis to {output_dir / f'{name}_cluster_analysis.png'}")
+
+
+def plot_cluster_size_distribution(notes_with_offsets, output_dir, name):
+    """Plot distribution of cluster sizes."""
+    cluster_sizes = [n.cluster_size for n in notes_with_offsets]
+    unique_sizes, counts = np.unique(cluster_sizes, return_counts=True)
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.bar(unique_sizes, counts, edgecolor='black', alpha=0.7)
+    ax.set_xlabel('Cluster size (notes)')
+    ax.set_ylabel('Count')
+    ax.set_title(f'Cluster Size Distribution - {name}')
+    ax.set_xticks(unique_sizes[:20])  # Show first 20 sizes
 
     plt.tight_layout()
-    fig.savefig(output_path, dpi=150)
+    fig.savefig(output_dir / f'{name}_cluster_sizes.png', dpi=150)
     plt.close(fig)
-    print(f"  saved tempo curve to {output_path}")
 
 
 def test_quantization_with_real_midi():
-    """Run quantization tests with real MIDI data from the training set."""
+    """Run cluster-based quantization tests with real MIDI data."""
     midi_dir = Path("midi_data_repaired_cache")
 
     if not midi_dir.exists():
@@ -111,7 +127,6 @@ def test_quantization_with_real_midi():
         print(f"error: no MIDI files found in {midi_dir}")
         return
 
-    # Use a fixed seed for reproducibility when selecting files
     random.seed(42)
     selected_files = random.sample(midi_files, min(3, len(midi_files)))
 
@@ -135,88 +150,46 @@ def test_quantization_with_real_midi():
 
         print(f"loaded {len(notes)} notes (ticks_per_beat={ticks_per_beat})")
 
-        # Extract onset times
-        onset_times = [n["onset_time"] for n in notes]
+        # Cluster-based quantization
+        print("\nperforming cluster-based quantization...")
+        notes_with_offsets, stats = quantize_notes_to_clusters(notes, gap_threshold=20)
 
-        # Calculate IOIs and estimate base beat
-        print("\ncalculating inter-onset intervals...")
-        iois = calculate_inter_onset_intervals(onset_times)
-        if len(iois) > 0:
-            print(f"  IOI stats: min={iois.min():.0f}, max={iois.max():.0f}, median={np.median(iois):.0f}")
-        else:
-            print("  no IOIs calculated")
-            continue
-
-        print("\nestimating base beat duration...")
-        base_beat = estimate_base_beat_duration(iois, ticks_per_beat)
-        print(f"  base beat: {base_beat} ticks")
-
-        # Detect adaptive grid with local tempo tracking
-        print("\ndetecting adaptive grid with local tempo tracking...")
-        grid_times, local_beats = detect_grid_from_onsets(
-            onset_times,
-            ticks_per_beat=ticks_per_beat,
-            subdivisions=4,  # sixteenth note grid
-            tempo_window=24,
-            tempo_smoothing=5.0,
-        )
-        print(f"  detected {len(grid_times)} grid points")
-        if local_beats:
-            local_beats_arr = np.array(local_beats)
-            print(f"  local beat range: {local_beats_arr.min():.0f} to {local_beats_arr.max():.0f} ticks")
-            print(f"  tempo variation: {local_beats_arr.std():.1f} ticks std")
-
-        # Quantize to grid
-        print("\nquantizing to adaptive grid...")
-        quant_results = quantize_to_grid(onset_times, grid_times)
-
-        # Analyze quality
-        print("\nanalyzing quantization quality...")
-        quality = analyze_quantization_quality(quant_results)
-        for key, value in quality.items():
-            if isinstance(value, float):
-                print(f"  {key}: {value:.2f}")
-            else:
-                print(f"  {key}: {value}")
+        print(f"  clusters: {stats['num_clusters']}")
+        print(f"  multi-note clusters: {stats['multi_note_clusters']}")
+        print(f"  single-note clusters: {stats['single_note_clusters']}")
+        print(f"  notes in multi-clusters: {stats['notes_in_multi_clusters']} ({stats['pct_in_multi_clusters']:.1f}%)")
+        print(f"  multi-cluster offset std: {stats['multi_offset_std']:.1f}")
+        print(f"  multi-cluster offset range: {stats['multi_offset_range']}")
 
         # Generate visualizations
         name = midi_path.stem
         print(f"\ngenerating visualizations...")
 
-        # Plot tempo curve
-        plot_tempo_curve(
-            onset_times,
-            local_beats,
-            output_dir / f"{name}_tempo.png",
-            name=name,
-        )
+        # Cluster analysis plots
+        plot_cluster_analysis(notes_with_offsets, stats, output_dir, name)
+        plot_cluster_size_distribution(notes_with_offsets, output_dir, name)
 
-        # Standard quantization analysis plots
-        plot_quantization_analysis(
-            notes,
-            grid_times,
-            quant_results,
-            output_dir,
-            name=name,
-        )
+        # Piano roll with cluster centroids as grid
+        onset_times = [n["onset_time"] for n in notes]
+        clusters = cluster_onsets_by_proximity(onset_times, gap_threshold=20)
+        grid_times = [int(np.mean(c)) for c in clusters]
 
-        # Generate zoomed view of first section
-        print("generating zoomed view...")
-        notes_with_offsets = []
-        for note, qr in zip(notes, quant_results):
-            note_copy = note.copy()
-            note_copy["time_offset"] = qr[2]
-            notes_with_offsets.append(note_copy)
+        # Add offset info to notes for plotting
+        notes_for_plot = []
+        for n, nwo in zip(sorted(notes, key=lambda x: x["onset_time"]), notes_with_offsets):
+            note_copy = n.copy()
+            note_copy["time_offset"] = nwo.time_offset
+            notes_for_plot.append(note_copy)
 
-        # Zoom to first few beats worth of music
+        # Zoomed piano roll
         min_time = min(n["onset_time"] for n in notes)
-        zoom_duration = base_beat * 8  # ~2 measures
+        zoom_duration = ticks_per_beat * 8
         plot_piano_roll_with_grid(
-            notes_with_offsets,
+            notes_for_plot,
             grid_times,
-            output_dir / f"{name}_zoomed.png",
+            output_dir / f"{name}_piano_roll_zoomed.png",
             time_range=(min_time, min_time + zoom_duration),
-            title=f"Piano Roll - {name} (Zoomed, ~2 measures)",
+            title=f"Piano Roll - {name} (cluster centroids as grid)",
         )
 
     print(f"\n{'='*60}")

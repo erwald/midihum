@@ -226,17 +226,39 @@ def plot_quantization_analysis(
         note_copy["time_offset"] = qr[2]
         notes_with_offsets.append(note_copy)
 
-    # 1. piano roll with grid
-    plot_piano_roll_with_grid(
-        notes_with_offsets,
-        grid_times,
-        output_dir / f"{name}_piano_roll.png",
-        title=f"Piano Roll - {name}",
-    )
+    # 1. piano roll with grid - generate zoomed sections instead of full view
+    # (full view at 800k+ ticks makes notes invisible)
+    times_arr = np.array([r[0] for r in quantization_results])
+    min_time = int(times_arr.min())
+    max_time = int(times_arr.max())
+    duration = max_time - min_time
+
+    # estimate a reasonable zoom window (about 2000-4000 ticks, ~2-4 measures)
+    zoom_window = min(4000, duration // 4)
+
+    # generate 3 zoomed views: start, middle, end
+    sections = [
+        ("start", min_time, min_time + zoom_window),
+        ("middle", min_time + duration // 2 - zoom_window // 2, min_time + duration // 2 + zoom_window // 2),
+        ("end", max_time - zoom_window, max_time),
+    ]
+
+    for section_name, start, end in sections:
+        plot_piano_roll_with_grid(
+            notes_with_offsets,
+            grid_times,
+            output_dir / f"{name}_piano_roll_{section_name}.png",
+            time_range=(start, end),
+            title=f"Piano Roll - {name} ({section_name})",
+        )
 
     # 2. offset distribution histogram
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.hist(offsets, bins=50, edgecolor="black", alpha=0.7)
+    # use integer-aligned bins since offsets are integers
+    min_offset = int(np.min(offsets))
+    max_offset = int(np.max(offsets))
+    bins = range(min_offset, max_offset + 2)  # +2 to include max value
+    ax.hist(offsets, bins=bins, edgecolor="black", alpha=0.7)
     ax.axvline(x=0, color="red", linestyle="--", linewidth=2, label="Grid (0 offset)")
     ax.axvline(x=np.mean(offsets), color="green", linestyle="-", linewidth=2, label=f"Mean: {np.mean(offsets):.1f}")
     ax.axvline(x=np.median(offsets), color="orange", linestyle="-", linewidth=2, label=f"Median: {np.median(offsets):.1f}")
