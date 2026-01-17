@@ -15,6 +15,7 @@ from quantization import (
     detect_grid_from_onsets,
     quantize_to_grid,
     calculate_local_density,
+    quantize_notes_to_clusters,
 )
 
 
@@ -457,66 +458,83 @@ def _add_engineered_features(
 
 def _add_time_displacement_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    add time displacement features to a dataframe for training.
+    Add time displacement features to a dataframe for training.
 
-    this function:
-    1. detects the rhythmic grid from onset times
-    2. calculates time_offset (actual - quantized) as the target variable
-    3. adds grid-related features useful for prediction
+    Uses cluster-based quantization: notes within 20 ticks form clusters
+    (chords/simultaneous notes), and the cluster centroid represents the
+    "intended" beat position. The time_offset is the difference between
+    the actual onset and the cluster centroid.
 
-    args:
-        df: dataframe with 'time' column containing absolute onset times
+    Args:
+        df: dataframe with 'time', 'pitch', 'velocity' columns
 
-    returns:
+    Returns:
         dataframe with added columns:
         - time_offset: target variable (signed, in MIDI ticks)
-        - grid_resolution: local grid size used for quantization
+        - cluster_size: number of notes in this note's cluster
+        - position_in_cluster: 0 = earliest note, 1 = second earliest, etc.
+        - in_multi_cluster: 1 if cluster_size > 1, else 0
         - local_density: note density around each onset
-        - position_in_grid: relative position within grid cell (0-1)
     """
-    onset_times = df["time"].tolist()
-
-    if len(onset_times) < 2:
-        # not enough notes for meaningful grid detection
-        df["time_offset"] = 0
-        df["grid_resolution"] = 100
+    if len(df) < 2:
+        df["time_offset"] = 0.0
+        df["cluster_size"] = 1
+        df["position_in_cluster"] = 0
+        df["in_multi_cluster"] = 0
         df["local_density"] = 1.0
-        df["position_in_grid"] = 0.5
         return df
 
-    # detect grid and quantize
-    grid_times, grid_resolutions = detect_grid_from_onsets(onset_times)
-    quant_results = quantize_to_grid(onset_times, grid_times)
+    # prepare notes for cluster-based quantization
+    notes = [
+        {
+            "onset_time": int(row.time),
+            "pitch": int(row.pitch),
+            "velocity": int(row.velocity),
+        }
+        for row in df.itertuples()
+    ]
 
-    # extract time_offset (target variable)
-    time_offsets = [qr[2] for qr in quant_results]
+    # perform cluster-based quantization
+    notes_with_offsets, _ = quantize_notes_to_clusters(notes, gap_threshold=20)
+
+    # create a mapping from (onset_time, pitch) to the NoteWithOffset
+    # to handle notes at the same time with different pitches
+    offset_map = {}
+    for nwo in notes_with_offsets:
+        key = (nwo.onset_time, nwo.pitch)
+        offset_map[key] = nwo
+
+    # extract features in the same order as the dataframe
+    time_offsets = []
+    cluster_sizes = []
+    positions_in_cluster = []
+
+    for row in df.itertuples():
+        key = (int(row.time), int(row.pitch))
+        if key in offset_map:
+            nwo = offset_map[key]
+            time_offsets.append(nwo.time_offset)
+            cluster_sizes.append(nwo.cluster_size)
+            positions_in_cluster.append(nwo.position_in_cluster)
+        else:
+            # fallback if note not found (shouldn't happen)
+            time_offsets.append(0.0)
+            cluster_sizes.append(1)
+            positions_in_cluster.append(0)
+
     df["time_offset"] = time_offsets
-
-    # add grid resolution for each note
-    df["grid_resolution"] = grid_resolutions
+    df["cluster_size"] = cluster_sizes
+    df["position_in_cluster"] = positions_in_cluster
+    df["in_multi_cluster"] = (df["cluster_size"] > 1).astype(int)
 
     # add local density
+    onset_times = df["time"].tolist()
     densities = calculate_local_density(onset_times)
     df["local_density"] = densities
 
-    # calculate position within grid cell (0 = at grid point, 0.5 = halfway)
-    # this helps the model understand where in the beat the note falls
-    positions = []
-    for actual, quantized, offset in quant_results:
-        # find the grid resolution for this note to normalize
-        idx = onset_times.index(actual)
-        resolution = grid_resolutions[idx] if idx < len(grid_resolutions) else 100
-        if resolution > 0:
-            # normalize offset to 0-1 range (0.5 = on grid)
-            normalized = (offset / resolution) + 0.5
-            positions.append(max(0, min(1, normalized)))
-        else:
-            positions.append(0.5)
-    df["position_in_grid"] = positions
-
     # add log versions for better model performance
     df["log_local_density"] = np.log(df["local_density"] + 1)
-    df["log_grid_resolution"] = np.log(df["grid_resolution"] + 1)
+    df["log_cluster_size"] = np.log(df["cluster_size"] + 1)
 
     # add rolling stats for time_offset (useful for detecting patterns)
     for window in [5, 15, 30]:
