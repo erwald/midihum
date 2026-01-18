@@ -1,61 +1,102 @@
 # Claude Code Guidelines for midihum
 
-## Project Overview
+## Overview
 
-midihum is a MIDI humanization tool that takes quantized/robotic MIDI performances and adds human-like expressiveness (timing variations, velocity changes, etc.).
+midihum is an ML-based MIDI humanization tool that transforms robotic/quantized MIDI into expressive performances. It uses XGBoost gradient boosted trees trained on ~2,600 competition piano performances from the International Piano-e-Competition.
 
-## Important Guidelines
+The tool has two main capabilities:
+1. **Velocity humanization** - Predicts natural dynamics (loudness) for each note
+2. **Time displacement** - Adds subtle timing variations to quantized notes
 
-### Always Use Real MIDI Data for Testing and Visualization
+## Project Structure
 
-When creating test scripts, visualizations, or analysis tools:
+```
+midihum/
+  main.py                    # CLI entry point (click commands)
+  midihum_model.py           # Velocity humanization model
+  time_displacement_model.py # Time displacement model
+  midi_to_df_conversion.py   # Feature extraction (~400 features)
+  quantization.py            # Cluster-based timing analysis
+  prepare_midi.py            # Data preparation pipelines
+  midi_utility.py            # MIDI file parsing utilities
+  plotter.py                 # Visualization functions
+  model_cache/               # Trained models and scalers
+  midi_data_repaired_cache/  # Training data (2878 MIDI files)
+  dfs/                       # Preprocessed training DataFrames
+  test_output/               # Generated visualizations
+```
 
-- **DO NOT** generate synthetic/artificial MIDI data
-- **DO** use real MIDI files from `midi_data_repaired_cache/`
-- Use a fixed random seed when selecting files for reproducibility
+## Key Commands
 
-Real performance data contains the nuances and complexity that synthetic data cannot replicate. Testing with synthetic data can give misleading results about algorithm effectiveness.
+```shell
+# Humanize velocity
+python main.py humanize input.mid output.mid
 
-Example pattern for loading test data:
+# Apply timing humanization
+python main.py time_displace input.mid output.mid --scale 1.0
+
+# Prepare training data
+python main.py prepare source_dir/ dest_dir/
+python main.py prepare_time_disp source_dir/ dest_dir/
+```
+
+## Development Guidelines
+
+### Always Use Real MIDI Data
+
+When writing tests, visualizations, or analysis code:
+- Use files from `midi_data_repaired_cache/` (real performances)
+- Never generate synthetic MIDI data for testing
+- Use `random.seed(42)` when sampling files for reproducibility
+
 ```python
 from pathlib import Path
 import random
 from midi_utility import get_midi_filepaths
 
-midi_dir = Path("midi_data_repaired_cache")
-midi_files = get_midi_filepaths(midi_dir)
-random.seed(42)  # For reproducibility
-selected_files = random.sample(midi_files, min(3, len(midi_files)))
+midi_files = get_midi_filepaths(Path("midi_data_repaired_cache"))
+random.seed(42)
+sample = random.sample(midi_files, min(10, len(midi_files)))
 ```
 
-### Key Directories
+### Time Displacement Architecture
 
-- `midi_data_repaired_cache/` - Cached MIDI files from the training dataset (2878 files)
-- `test_output/` - Generated visualizations and test outputs
+The time displacement model uses cluster-based quantization to detect "intended" beat positions:
 
-### Key Modules
+1. Notes within 20 ticks form a cluster (chords played together)
+2. The cluster centroid is the "intended" beat position
+3. Each note's offset from centroid = expressive timing
 
-- `midi_utility.py` - MIDI loading utilities (`get_note_tracks`, `get_midi_filepaths`, `NoteEvent`)
-- `quantization.py` - Cluster-based quantization for time displacement
-- `plotter.py` - Visualization functions for analysis
-- `midihum_model.py` - The main velocity humanization model
-- `midi_to_df_conversion.py` - Feature extraction from MIDI to DataFrames
+About 67% of notes fall in multi-note clusters, providing reliable training targets. Single-note clusters have offset=0 by definition.
 
-### Time Displacement (Timing Humanization)
+Key functions in `quantization.py`:
+- `cluster_onsets_by_proximity()` - Groups notes into clusters
+- `compute_cluster_centroids()` - Finds cluster center times
+- `quantize_notes_to_clusters()` - Main API returning `NoteWithOffset` objects
 
-The time displacement model uses **cluster-based quantization** to detect where notes "should" be:
+### Feature Engineering
 
-1. **Cluster detection**: Notes within 20 ticks of each other form a cluster (chord/simultaneous notes)
-2. **Centroid calculation**: The cluster centroid (mean time) represents the "intended" beat position
-3. **Offset extraction**: Each note's offset from its cluster centroid is the target for training
+Features are extracted in `midi_to_df_conversion.py`:
+- Pitch and pitch class
+- Intervals from previous notes
+- Note density and timing context
+- Chord analysis (character, size)
+- Rolling statistics (SMA, EWM)
+- Technical indicators (Ichimoku, MACD-style)
 
-Key insight: ~67% of notes are in multi-note clusters, providing reliable ground-truth for timing offsets. The cluster centroid of a chord represents where the chord was "meant" to be played.
+### Model Files
 
-Core functions in `quantization.py`:
-- `cluster_onsets_by_proximity()` - Groups notes into clusters by temporal proximity
-- `compute_cluster_centroids()` - Calculates centroid of each cluster
-- `quantize_notes_to_clusters()` - Main API that returns `NoteWithOffset` objects with timing data
+- `model_cache/xgboost_model.json` - Velocity model
+- `model_cache/std_scaler.pkl` - Velocity feature scaler
+- `model_cache/time_displacement.json` - Time displacement model
+- `model_cache/time_displacement_scaler.pkl` - Time displacement scaler
 
-Training files:
-- `xgboost_train_time_displacement.ipynb` - Training notebook for the time displacement model
-- Model saved to `model_cache/time_displacement.json`
+## Testing
+
+```shell
+# Unit tests for quantization
+python -m pytest test_quantization_unit.py -v
+
+# Integration test with real MIDI
+python test_quantization.py
+```

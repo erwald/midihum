@@ -53,11 +53,7 @@ def humanize(source: str, destination: str):
 @click.argument("source_dir")
 @click.argument("destination_dir")
 def prepare_time_disp(source_dir: str, destination_dir: str):
-    """Prepare training data for time displacement model.
-
-    SOURCE_DIR should contain MIDI files (expressive performances).
-    Outputs training/validation data to DESTINATION_DIR.
-    """
+    """Convert MIDI data in SOURCE_DIR to time displacement training data and store in DESTINATION_DIR."""
     assert source_dir != destination_dir, (source_dir, destination_dir)
     prepare_time_displacement_data(Path(source_dir), Path(destination_dir))
 
@@ -71,11 +67,7 @@ def prepare_time_disp(source_dir: str, destination_dir: str):
     help="Scale factor for displacement (1.0 = full, 0.5 = subtle)",
 )
 def time_displace(source: str, destination: str, scale: float):
-    """Apply humanistic timing to quantized MIDI file.
-
-    SOURCE should be a quantized MIDI file (from DAW/composition software).
-    Predicts and applies timing offsets to make it sound more human.
-    """
+    """Apply humanistic timing to MIDI file at SOURCE, writing to DESTINATION."""
     assert source != destination, (source, destination)
     try:
         TimeDisplacementModel().displace(Path(source), Path(destination), scale)
