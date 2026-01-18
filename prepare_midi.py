@@ -174,7 +174,7 @@ def prepare_midi_data(source_dir: Path, destination_dir: Path):
     validate_df.to_parquet(destination_dir / _VALIDATE_DATA_FILENAME)
 
     # plot some visualisations of the training set
-    plotter.plot_data(train_df.sample(5000), Path("plots"))
+    plotter.plot_data(train_df.sample(5000))
 
 
 def repair_midi_files(source_dir: Path, cache_dir: Path, bust_cache: bool = False):

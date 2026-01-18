@@ -1,8 +1,7 @@
-"""
-time displacement model for predicting humanistic timing offsets.
+"""Time displacement model for predicting humanistic timing offsets.
 
-similar to MidihumModel (velocity prediction), but predicts time_offset
-instead of velocity. applies timing variations to make quantized MIDI
+Similar to MidihumModel (velocity prediction), but predicts time_offset
+instead of velocity. Applies timing variations to make quantized MIDI
 sound more human.
 """
 
@@ -21,7 +20,7 @@ from prepare_midi import rebuild_track_with_messages
 
 
 class TimeDisplacementModel:
-    """an XGBoost model for predicting timing offsets of MIDI notes."""
+    """An XGBoost model for predicting timing offsets of MIDI notes."""
 
     model_cache_path = Path("model_cache")
     model_path = Path(f"{model_cache_path}/time_displacement.json")
@@ -29,9 +28,7 @@ class TimeDisplacementModel:
 
     def __init__(self):
         if self.model_path.exists() and self.scaler_path.exists():
-            click.echo(
-                f"time_displacement_model loading model from {self.model_path}"
-            )
+            click.echo(f"loading model from {self.model_path}")
             self.model = xgb.XGBRegressor(
                 booster="gbtree",
                 max_depth=6,
@@ -58,7 +55,7 @@ class TimeDisplacementModel:
     def _get_column_names_from_df(
         df: pd.DataFrame,
     ) -> Tuple[List[str], List[str], List[str]]:
-        """get column names split by type, excluding non-feature columns."""
+        """Get column names split by type, excluding non-feature columns."""
         columns_to_skip = [
             "velocity",
             "time",
@@ -83,15 +80,14 @@ class TimeDisplacementModel:
         df: pd.DataFrame,
         scale_factor: float = 1.0,
     ) -> pd.DataFrame:
-        """
-        predict time offsets and add them to the dataframe.
+        """Predict time offsets and add them to the dataframe.
 
-        args:
-            df: dataframe with MIDI features (from midi_files_to_df)
-            scale_factor: multiply predicted offsets by this (1.0 = full humanization)
+        Args:
+            df: DataFrame with MIDI features (from midi_files_to_df).
+            scale_factor: Multiply predicted offsets by this (1.0 = full humanization).
 
-        returns:
-            dataframe with 'predicted_offset' column added
+        Returns:
+            DataFrame with 'predicted_offset' column added.
         """
         cat_names, cont_names, out_names = self._get_column_names_from_df(df)
         for col in cat_names:
@@ -127,8 +123,8 @@ class TimeDisplacementModel:
         df["predicted_offset"] = (predictions * scale_factor).astype(int)
 
         click.echo(
-            f"time_displacement_model inferred {len(df)} offsets with "
-            f"mean {np.mean(df.predicted_offset):.1f} and std {np.std(df.predicted_offset):.1f}"
+            f"inferred {len(df)} offsets "
+            f"(mean: {np.mean(df.predicted_offset):.1f}, std: {np.std(df.predicted_offset):.1f})"
         )
         return df
 
@@ -138,18 +134,17 @@ class TimeDisplacementModel:
         destination_path: Path,
         scale_factor: float = 1.0,
     ) -> List[int]:
-        """
-        apply time displacement to a MIDI file.
+        """Apply time displacement to a MIDI file.
 
-        args:
-            source_path: path to input MIDI file (should be quantized)
-            destination_path: path to save humanized output
-            scale_factor: how much to apply (1.0 = full, 0.5 = subtle)
+        Args:
+            source_path: Path to input MIDI file (should be quantized).
+            destination_path: Path to save humanized output.
+            scale_factor: How much to apply (1.0 = full, 0.5 = subtle).
 
-        returns:
-            list of time offsets applied to each note
+        Returns:
+            List of time offsets applied to each note.
         """
-        click.echo(f"time_displacement_model displacing {source_path}")
+        click.echo(f"displacing {source_path}")
 
         # convert MIDI to dataframe with features
         df = midi_files_to_df(
@@ -197,7 +192,7 @@ class TimeDisplacementModel:
             # rebuild track with new times
             rebuild_track_with_messages(track, timed_messages)
 
-        click.echo(f"time_displacement_model saving displaced file to {destination_path}")
+        click.echo(f"saving displaced file to {destination_path}")
         midi_file.save(destination_path)
 
         return offsets

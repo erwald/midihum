@@ -8,23 +8,26 @@ import random
 from pathlib import Path
 
 import numpy as np
-import matplotlib.pyplot as plt
 from mido import MidiFile
 
 from quantization import (
     quantize_notes_to_clusters,
     cluster_onsets_by_proximity,
 )
-from plotter import plot_piano_roll_with_grid
+from plotter import (
+    plot_piano_roll_with_grid,
+    plot_cluster_analysis,
+    plot_cluster_size_distribution,
+)
+from plot_config import TEST_OUTPUT_DIR
 from midi_utility import get_note_tracks, get_midi_filepaths
 
 
 def load_notes_from_midi(midi_path: Path) -> tuple:
-    """
-    Load notes from a MIDI file.
+    """Load notes from a MIDI file.
 
     Returns:
-        tuple of (notes list, ticks_per_beat)
+        Tuple of (notes list, ticks_per_beat).
     """
     midi_file = MidiFile(midi_path)
     ticks_per_beat = midi_file.ticks_per_beat
@@ -57,62 +60,6 @@ def load_notes_from_midi(midi_path: Path) -> tuple:
     return notes, ticks_per_beat
 
 
-def plot_cluster_analysis(notes_with_offsets, stats, output_dir, name):
-    """Generate plots for cluster-based quantization analysis."""
-
-    # Separate multi-note and single-note cluster offsets
-    all_offsets = np.array([n.time_offset for n in notes_with_offsets])
-    multi_offsets = np.array([n.time_offset for n in notes_with_offsets if n.cluster_size > 1])
-
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-
-    # Plot 1: All offsets
-    ax1 = axes[0]
-    if len(all_offsets) > 0:
-        bins = range(int(all_offsets.min()) - 1, int(all_offsets.max()) + 2)
-        ax1.hist(all_offsets, bins=bins, edgecolor='black', alpha=0.7)
-        ax1.axvline(x=0, color='red', linestyle='--', linewidth=2, label='Centroid')
-        ax1.set_xlabel('Offset from cluster centroid (ticks)')
-        ax1.set_ylabel('Count')
-        ax1.set_title(f'All notes (n={len(all_offsets)})\nstd={all_offsets.std():.1f}')
-        ax1.legend()
-
-    # Plot 2: Multi-note clusters only (chord spread)
-    ax2 = axes[1]
-    if len(multi_offsets) > 0:
-        bins = range(int(multi_offsets.min()) - 1, int(multi_offsets.max()) + 2)
-        ax2.hist(multi_offsets, bins=bins, edgecolor='black', alpha=0.7, color='green')
-        ax2.axvline(x=0, color='red', linestyle='--', linewidth=2, label='Centroid')
-        ax2.set_xlabel('Offset from cluster centroid (ticks)')
-        ax2.set_ylabel('Count')
-        pct = stats['pct_in_multi_clusters']
-        ax2.set_title(f'Multi-note clusters only (n={len(multi_offsets)}, {pct:.0f}% of notes)\nstd={multi_offsets.std():.1f}')
-        ax2.legend()
-
-    plt.suptitle(f'Cluster-based Quantization - {name}', fontsize=12)
-    plt.tight_layout()
-    fig.savefig(output_dir / f'{name}_cluster_analysis.png', dpi=150)
-    plt.close(fig)
-    print(f"  saved cluster analysis to {output_dir / f'{name}_cluster_analysis.png'}")
-
-
-def plot_cluster_size_distribution(notes_with_offsets, output_dir, name):
-    """Plot distribution of cluster sizes."""
-    cluster_sizes = [n.cluster_size for n in notes_with_offsets]
-    unique_sizes, counts = np.unique(cluster_sizes, return_counts=True)
-
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.bar(unique_sizes, counts, edgecolor='black', alpha=0.7)
-    ax.set_xlabel('Cluster size (notes)')
-    ax.set_ylabel('Count')
-    ax.set_title(f'Cluster Size Distribution - {name}')
-    ax.set_xticks(unique_sizes[:20])  # Show first 20 sizes
-
-    plt.tight_layout()
-    fig.savefig(output_dir / f'{name}_cluster_sizes.png', dpi=150)
-    plt.close(fig)
-
-
 def test_quantization_with_real_midi():
     """Run cluster-based quantization tests with real MIDI data."""
     midi_dir = Path("midi_data_repaired_cache")
@@ -129,7 +76,7 @@ def test_quantization_with_real_midi():
     random.seed(42)
     selected_files = random.sample(midi_files, min(3, len(midi_files)))
 
-    output_dir = Path("test_output")
+    output_dir = TEST_OUTPUT_DIR
     output_dir.mkdir(exist_ok=True)
 
     for midi_path in selected_files:

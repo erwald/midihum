@@ -34,18 +34,17 @@ def cluster_onsets_by_proximity(
     onset_times: List[int],
     gap_threshold: int = 20,
 ) -> List[List[int]]:
-    """
-    Group note onsets into clusters based on temporal proximity.
+    """Group note onsets into clusters based on temporal proximity.
 
     Notes within gap_threshold ticks of each other are considered
     "simultaneous" (part of the same chord or beat).
 
     Args:
-        onset_times: sorted list of note onset times
-        gap_threshold: max gap between consecutive notes in same cluster (ticks)
+        onset_times: Sorted list of note onset times.
+        gap_threshold: Max gap between consecutive notes in same cluster (ticks).
 
     Returns:
-        list of clusters, where each cluster is a list of onset times
+        List of clusters, where each cluster is a list of onset times.
     """
     if not onset_times:
         return []
@@ -73,20 +72,17 @@ def quantize_notes_to_clusters(
     notes: List[dict],
     gap_threshold: int = 20,
 ) -> Tuple[List[NoteWithOffset], Dict]:
-    """
-    Quantize notes using cluster-centroid method.
+    """Quantize notes using cluster-centroid method.
 
     For each note, find its cluster and compute offset from cluster centroid.
     This gives meaningful offsets for notes in multi-note clusters (chords).
 
     Args:
-        notes: list of note dicts with onset_time, pitch, velocity, offset_time
-        gap_threshold: max gap for clustering (ticks)
+        notes: List of note dicts with onset_time, pitch, velocity, offset_time.
+        gap_threshold: Max gap for clustering (ticks).
 
     Returns:
-        tuple of:
-        - list of NoteWithOffset objects
-        - dict of statistics about the quantization
+        Tuple of (list of NoteWithOffset objects, dict of statistics).
     """
     if not notes:
         return [], {}
@@ -163,15 +159,14 @@ def quantize_to_grid(
     onset_times: List[int],
     grid_times: List[int],
 ) -> List[Tuple[int, int, int]]:
-    """
-    Snap each onset to nearest grid point and calculate offset.
+    """Snap each onset to nearest grid point and calculate offset.
 
     Args:
-        onset_times: list of actual note onset times
-        grid_times: list of grid point times (cluster centroids)
+        onset_times: List of actual note onset times.
+        grid_times: List of grid point times (cluster centroids).
 
     Returns:
-        list of (actual_time, quantized_time, offset) tuples
+        List of (actual_time, quantized_time, offset) tuples.
     """
     if not grid_times:
         return [(t, t, 0) for t in onset_times]

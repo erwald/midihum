@@ -20,10 +20,12 @@ midihum/
   prepare_midi.py            # Data preparation pipelines
   midi_utility.py            # MIDI file parsing utilities
   plotter.py                 # Visualization functions
+  plot_config.py             # Plot output paths and settings
   model_cache/               # Trained models and scalers
   midi_data_repaired_cache/  # Training data (2878 MIDI files)
   dfs/                       # Preprocessed training DataFrames
-  test_output/               # Generated visualizations
+  output/                    # Generated plots (eda/, analysis/, results/)
+  test_output/               # Test visualizations
 ```
 
 ## Key Commands
@@ -39,6 +41,53 @@ python main.py time_displace input.mid output.mid --scale 1.0
 python main.py prepare source_dir/ dest_dir/
 python main.py prepare_time_disp source_dir/ dest_dir/
 ```
+
+## Code Style
+
+### Docstrings (PEP 257)
+
+Follow [PEP 257](https://peps.python.org/pep-0257/) conventions:
+
+```python
+def compute_cluster_centroids(clusters: List[List[int]]) -> np.ndarray:
+    """Compute the centroid (mean time) of each cluster.
+
+    Args:
+        clusters: List of clusters, where each cluster is a list of onset times.
+
+    Returns:
+        Array of centroid times for each cluster.
+    """
+```
+
+Key rules:
+- Capitalize first letter of summary line
+- End summary with a period
+- Use `Args:` and `Returns:` sections (capitalized)
+- End each parameter/return description with a period
+- Use imperative mood ("Compute..." not "Computes...")
+
+### CLI Output (clig.dev)
+
+Follow [clig.dev](https://clig.dev/) guidelines for CLI interfaces:
+
+```python
+# Good - lowercase, terse, no redundant prefixes
+click.echo(f"loading model from {path}")
+click.echo(f"saved {count} files to {output_dir}")
+click.echo("no notes to plot")
+
+# Bad - verbose, redundant module names
+click.echo(f"TimeDisplacementModel: Loading model from {path}...")
+click.echo(f"Plotter: Successfully saved {count} files to {output_dir}!")
+```
+
+Key rules:
+- Lowercase messages (no sentence case)
+- No trailing periods on short messages
+- No redundant module/class name prefixes
+- Errors go to stderr: `click.echo(f"error: {msg}", err=True)`
+- CLI help text: lowercase, no periods (e.g., `"""convert MIDI files to dataframes"""`)
 
 ## Development Guidelines
 
@@ -57,6 +106,21 @@ from midi_utility import get_midi_filepaths
 midi_files = get_midi_filepaths(Path("midi_data_repaired_cache"))
 random.seed(42)
 sample = random.sample(midi_files, min(10, len(midi_files)))
+```
+
+### Plotting
+
+Use `plot_config.py` for consistent output paths:
+
+```python
+from plot_config import EDA_DIR, ANALYSIS_DIR, get_output_path
+
+# Functions use sensible defaults
+plotter.plot_data(df)  # saves to output/eda/
+plotter.plot_cluster_analysis(notes, stats)  # saves to output/analysis/
+
+# Or specify custom paths
+plotter.plot_data(df, output_dir=Path("custom/"))
 ```
 
 ### Time Displacement Architecture
