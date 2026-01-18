@@ -164,3 +164,50 @@ python -m pytest test_quantization_unit.py -v
 # Integration test with real MIDI
 python test_quantization.py
 ```
+
+## Git Practices
+
+### Atomic Commits
+
+Make small, focused commits that do one thing:
+
+```shell
+# Good - one logical change per commit
+git commit -m "Add cluster_onsets_by_proximity function"
+git commit -m "Fix off-by-one error in quantization"
+git commit -m "Update docstrings to PEP 257 style"
+
+# Bad - multiple unrelated changes
+git commit -m "Add clustering, fix bugs, update docs, refactor tests"
+```
+
+### Commit Messages
+
+Write clear, imperative commit messages:
+
+```
+# Format
+<summary line - what the commit does>
+
+<optional body - why, context, details>
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+```
+
+Key rules:
+- Use imperative mood ("Add feature" not "Added feature")
+- Summary line ~50 chars, no period
+- Body wrapped at 72 chars
+- Explain *why* in body, not just *what*
+
+### What to Commit
+
+- **Do commit**: Source code, tests, documentation, config files
+- **Don't commit**: Generated files, large data, credentials, `.mid` files, model caches
+
+Files in `.gitignore`:
+- `midi_data*/` - Training data (too large)
+- `model_cache/` - Trained models (regenerable)
+- `output/`, `test_output/`, `plots/` - Generated visualizations
+- `dfs/` - Preprocessed DataFrames
+- `*.mid` - MIDI files in project root
