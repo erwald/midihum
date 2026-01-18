@@ -11,14 +11,14 @@ from time_displacement_model import TimeDisplacementModel
 
 @click.group()
 def midihum():
-    """Midihum is a tool for humanizing (that is, determining velocity values of notes for) MIDI files."""
+    """humanize MIDI files with ML-predicted velocity and timing"""
 
 
 @midihum.command()
 @click.argument("source_dir")
 @click.argument("destination_dir")
 def prepare(source_dir: str, destination_dir: str):
-    """Convert MIDI data in SOURCE_DIR to DataFrame and store in DESTINATION_DIR."""
+    """convert MIDI files to training dataframes"""
     assert source_dir != destination_dir, (source_dir, destination_dir)
     prepare_midi_data(Path(source_dir), Path(destination_dir))
 
@@ -26,14 +26,14 @@ def prepare(source_dir: str, destination_dir: str):
 @midihum.command()
 @click.argument("destination_dir")
 def scrape_midi(destination_dir: str):
-    """Download all e-Piano Competition MIDI files and store in DESTINATION_DIR."""
+    """download e-Piano Competition MIDI files"""
     scrape_midi_data(Path(destination_dir))
 
 
 @midihum.command()
 @click.argument("target_dir")
 def find_midi_duplicates(target_dir: str):
-    """Searches target dir for duplicate MIDI files and prints out a list of them. Warning: this is kinda slow."""
+    """find duplicate MIDI files in a directory"""
     find_duplicate_midi_files(Path(target_dir))
 
 
@@ -41,19 +41,19 @@ def find_midi_duplicates(target_dir: str):
 @click.argument("source")
 @click.argument("destination")
 def humanize(source: str, destination: str):
-    """Humanize MIDI file at SOURCE, writing to DESTINATION."""
+    """predict velocity values for MIDI file"""
     assert source != destination, (source, destination)
     try:
         MidihumModel().humanize(Path(source), Path(destination))
     except Exception as e:
-        click.echo(f"midihum could not humanize the given file: {e}")
+        click.echo(f"error: {e}", err=True)
 
 
 @midihum.command()
 @click.argument("source_dir")
 @click.argument("destination_dir")
 def prepare_time_disp(source_dir: str, destination_dir: str):
-    """Convert MIDI data in SOURCE_DIR to time displacement training data and store in DESTINATION_DIR."""
+    """convert MIDI files to time displacement training data"""
     assert source_dir != destination_dir, (source_dir, destination_dir)
     prepare_time_displacement_data(Path(source_dir), Path(destination_dir))
 
@@ -64,18 +64,18 @@ def prepare_time_disp(source_dir: str, destination_dir: str):
 @click.option(
     "--scale",
     default=1.0,
-    help="Scale factor for displacement (1.0 = full, 0.5 = subtle)",
+    help="displacement scale (1.0 = full, 0.5 = subtle)",
 )
 def time_displace(source: str, destination: str, scale: float):
-    """Apply humanistic timing to MIDI file at SOURCE, writing to DESTINATION."""
+    """apply timing humanization to MIDI file"""
     assert source != destination, (source, destination)
     try:
         TimeDisplacementModel().displace(Path(source), Path(destination), scale)
     except FileNotFoundError as e:
-        click.echo(f"midihum time displacement model not found: {e}")
-        click.echo("run 'python main.py prepare_time_disp' first to train the model")
+        click.echo(f"error: model not found: {e}", err=True)
+        click.echo("run 'python main.py prepare_time_disp' first", err=True)
     except Exception as e:
-        click.echo(f"midihum could not displace the given file: {e}")
+        click.echo(f"error: {e}", err=True)
 
 
 if __name__ == "__main__":
