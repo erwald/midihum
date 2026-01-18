@@ -173,32 +173,39 @@ Make small, focused commits that do one thing:
 
 ```shell
 # Good - one logical change per commit
-git commit -m "Add cluster_onsets_by_proximity function"
-git commit -m "Fix off-by-one error in quantization"
-git commit -m "Update docstrings to PEP 257 style"
+"Add cluster_onsets_by_proximity function"
+"Fix off-by-one error in quantization"
+"Update docstrings to PEP 257 style"
 
 # Bad - multiple unrelated changes
-git commit -m "Add clustering, fix bugs, update docs, refactor tests"
+"Add clustering, fix bugs, update docs, refactor tests"
 ```
 
 ### Commit Messages
 
-Write clear, imperative commit messages:
+Write descriptive commit messages with a body explaining *why*:
 
-```
-# Format
-<summary line - what the commit does>
+```shell
+# Use heredoc for multi-line messages (never just `git commit -m "..."`)
+git commit -m "$(cat <<'EOF'
+Add cluster-based quantization for time displacement
 
-<optional body - why, context, details>
+The cluster centroid method detects "intended" beat positions by
+grouping notes within 20 ticks. This provides reliable ground-truth
+for training since ~67% of notes fall in multi-note clusters.
 
 Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+EOF
+)"
 ```
 
 Key rules:
 - Use imperative mood ("Add feature" not "Added feature")
 - Summary line ~50 chars, no period
+- Blank line between summary and body
 - Body wrapped at 72 chars
 - Explain *why* in body, not just *what*
+- Always include a body for non-trivial changes
 
 ### What to Commit
 
