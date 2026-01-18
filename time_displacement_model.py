@@ -15,7 +15,6 @@ import numpy as np
 import pandas as pd
 import pickle
 import xgboost as xgb
-import sklearn
 
 from midi_to_df_conversion import midi_files_to_df
 from prepare_midi import rebuild_track_with_messages

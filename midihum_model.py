@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import click
 import mido
@@ -7,10 +7,9 @@ import numpy as np
 import pandas as pd
 import pickle
 import xgboost as xgb
-import sklearn
+from sklearn.preprocessing import StandardScaler
 
 from midi_to_df_conversion import midi_files_to_df
-from prepare_midi import load_data
 
 
 class MidihumModel:
@@ -71,7 +70,7 @@ class MidihumModel:
 
     @staticmethod
     def _rescale_predictions(
-        scaler: sklearn.preprocessing.StandardScaler, preds: pd.Series
+        scaler: StandardScaler, preds: pd.Series
     ) -> pd.Series:
         # FIXME: get velocity idx dynamically -- maybe save it with the scaler.
         velocity_idx = 0

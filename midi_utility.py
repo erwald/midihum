@@ -1,6 +1,5 @@
 from collections import namedtuple
 import hashlib
-import itertools
 import struct
 from pathlib import Path
 from typing import List

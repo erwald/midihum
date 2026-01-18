@@ -304,11 +304,3 @@ def prepare_time_displacement_data(source_dir: Path, destination_dir: Path):
     validate_df.to_parquet(destination_dir / _TIME_DISP_VALIDATE_FILENAME)
 
     click.echo(f"prepare_midi saved time displacement data to {destination_dir}")
-
-
-def load_time_displacement_data(data_dir: Path):
-    """load time displacement training and validation data."""
-    click.echo("prepare_midi loading time displacement data")
-    train_df = pd.read_parquet(data_dir / _TIME_DISP_TRAIN_FILENAME)
-    validate_df = pd.read_parquet(data_dir / _TIME_DISP_VALIDATE_FILENAME)
-    return train_df, validate_df

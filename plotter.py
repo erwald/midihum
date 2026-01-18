@@ -59,21 +59,6 @@ def plot_data(df: pd.DataFrame, output_dir: Path):
         plt.clf()
 
 
-def plot_predictions(df: pd.DataFrame, output_dir: Path):
-    click.echo("plotter plotting predictions")
-    os.makedirs(output_dir, exist_ok=True)
-
-    # relationship between predictions and targets
-    for col, err_col in [
-        ("prediction", "error"),
-        ("adjusted_prediction", "adjusted_error"),
-    ]:
-        g = sns.FacetGrid(df, col="name", col_wrap=8)
-        g.map_dataframe(sns.scatterplot, x="target", y=col, hue=err_col, legend=False)
-        g.set(xlim=(-1, 1), ylim=(-1, 1))
-        g.savefig(output_dir / f"{col}.png")
-
-
 def plot_piano_roll_with_grid(
     notes: list,
     grid_times: list,

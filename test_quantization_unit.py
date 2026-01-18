@@ -11,7 +11,6 @@ from quantization import (
     quantize_to_grid,
     analyze_quantization_quality,
     calculate_local_density,
-    NoteWithOffset,
 )
 
 

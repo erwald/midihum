@@ -14,9 +14,8 @@ from mido import MidiFile
 from quantization import (
     quantize_notes_to_clusters,
     cluster_onsets_by_proximity,
-    compute_cluster_centroids,
 )
-from plotter import plot_piano_roll_with_grid, plot_quantization_analysis
+from plotter import plot_piano_roll_with_grid
 from midi_utility import get_note_tracks, get_midi_filepaths
 
 
