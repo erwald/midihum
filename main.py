@@ -40,11 +40,17 @@ def find_midi_duplicates(target_dir: str):
 @midihum.command()
 @click.argument("source")
 @click.argument("destination")
-def humanize(source: str, destination: str):
+@click.option(
+    "--strength",
+    "-s",
+    default=1.0,
+    help="How much to humanize (0.0 = original, 1.0 = fully humanized).",
+)
+def humanize(source: str, destination: str, strength: float):
     """Humanize MIDI file at SOURCE, writing to DESTINATION."""
     assert source != destination, (source, destination)
     try:
-        MidihumModel().humanize(Path(source), Path(destination))
+        MidihumModel().humanize(Path(source), Path(destination), strength=strength)
     except Exception as e:
         click.echo(f"midihum could not humanize the given file: {e}")
 

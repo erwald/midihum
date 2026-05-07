@@ -107,9 +107,9 @@ class MidihumModel:
         return df
 
     def humanize(
-        self, source_path: Path, destination_path: Path, rescale: bool = True
+        self, source_path: Path, destination_path: Path, strength: float = 1.0
     ) -> List[float]:
-        click.echo(f"midihum_tabular humanizing {source_path}")
+        click.echo(f"midihum_tabular humanizing {source_path} with strength {strength}")
         df = midi_files_to_df(
             midi_filepaths=[source_path], skip_suspicious=False
         ).copy()
@@ -119,13 +119,22 @@ class MidihumModel:
 
         # load input midi file and, for each prediction, set the new velocity
         midi_file = mido.MidiFile(source_path)
-        velocities = [round(row.prediction) for _, row in df.iterrows()]
-        for row, velocity in zip(df.itertuples(), velocities):
+        
+        final_velocities = []
+        for row in df.itertuples():
+            original = row.velocity
+            predicted = row.prediction
+            
+            # Interpolate between original and predicted velocity
+            blended = original + strength * (predicted - original)
+            velocity = int(round(np.clip(blended, 1, 127)))
+            
             midi_file.tracks[row.midi_track_index][
                 row.midi_event_index
             ].velocity = velocity
+            final_velocities.append(velocity)
 
         click.echo(f"midihum_tabular saving humanized file to {destination_path}")
         midi_file.save(destination_path)
 
-        return velocities
+        return final_velocities

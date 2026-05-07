@@ -17,8 +17,23 @@ Then -- making sure you're still in the midihum/ directory -- simply:
 ```shell
 python main.py humanize /path/to/file.mid /path/to/humanized_file.mid
 ```
-
 (Or use `python3` instead of `python` if that is your Python 3 binary.)
+
+### Adjusting Humanization Strength (added later by joney94)
+
+You can adjust how much the tool changes the original dynamics using the `--strength` (or `-s`) parameter:
+
+```shell
+python main.py humanize input.mid output.mid --strength 0.5
+```
+
+The strength is a value between `0.0` and `1.0`:
+- `1.0` (default): Fully replaces original velocities with model predictions.
+- `0.0`: Keeps original velocities (no humanization).
+- `0.5`: Blends original and humanized velocities 50/50.
+
+This is particularly useful if your source MIDI comes from **notation software** (like Sibelius, Finale, or Musescore). These programs often export "discrete" velocity values (e.g., all *mf* notes are exactly 80). By using a strength value like `0.3` or `0.5`, you can preserve your intended musical dynamics (the difference between parts) while adding the subtle, natural variations of a human performer.
+
 
 ## Performance
 
